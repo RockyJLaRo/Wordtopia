@@ -1,0 +1,42 @@
+--- src/pages/Home.tsx
++++ src/pages/Home.tsx
+@@ -4,6 +4,7 @@
+ import { useProgressStore } from '../store/useProgressStore';
+ import { SHOP_ITEMS } from '../data/shopItems';
++import { MascotAvatar } from '../components/MascotAvatar';
+ 
+ function MascotDisplay() {
+   const { mascotName, mascotHealth, mascotHappiness, equipped, dailyStreak, spendCoins, feedMascot, playWithMascot } = useProgressStore();
+@@ -34,31 +35,11 @@
+       
+       {/* Background decoration */}
+       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-100 via-white to-white opacity-50"></div>
+       
+-      <div className="relative w-40 h-40 bg-slate-50 rounded-full flex items-center justify-center text-7xl shadow-inner border-4 border-white z-10 mb-4 transition-transform group-hover:scale-105 duration-500">
+-        <span role="img" aria-label="Mascot">🐱</span>
+-        {/* Render Equipped Items on top of Mascot */}
+-        {Object.values(equipped).map(itemId => {
+-          const item = SHOP_ITEMS.find(i => i.id === itemId);
+-          if (!item) return null;
+-          // Position differently based on category
+-          let posClass = "";
+-          if (item.category === 'Headwear') posClass = "absolute -top-4 -right-2 text-5xl rotate-12";
+-          else if (item.category === 'Back') posClass = "absolute -bottom-2 -left-4 text-6xl -rotate-12 z-[-1]";
+-          else if (item.category === 'Pet') posClass = "absolute bottom-2 -right-4 text-5xl";
+-          else if (item.category === 'Shoes') posClass = "absolute -bottom-4 left-1/2 -translate-x-1/2 text-4xl";
+-          else if (item.category === 'Outfit') posClass = "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-6xl z-[-1]";
+-          else if (item.category === 'Hand') posClass = "absolute top-1/2 -right-6 -translate-y-1/2 text-5xl rotate-45";
+-          else if (item.category === 'Aura') posClass = "absolute inset-0 w-full h-full text-8xl flex items-center justify-center z-[-2] opacity-50 animate-pulse";
+-          
+-          return (
+-            <span key={item.id} className={posClass} style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>
+-              {item.emoji}
+-            </span>
+-          );
+-        })}
++      <div className="relative z-10 mb-6 mt-4">
++        <MascotAvatar equipped={equipped} size={140} />
+       </div>
+ 
+       <h2 className="text-2xl font-black text-slate-800 relative z-10">{mascotName || 'Mochi'}</h2>
+       <p className="text-slate-500 font-bold mb-4 relative z-10">Keep {mascotName || 'Mochi'} happy and healthy by studying!</p>

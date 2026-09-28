@@ -1,0 +1,3011 @@
+{
+ "cell_size": 64,
+ "columns": 26,
+ "rows": 9,
+ "sheet_size": [
+  1664,
+  576
+ ],
+ "layer_order_back_to_front": [
+  "BACK",
+  "TAIL",
+  "BASE",
+  "TEXTURE",
+  "BODY",
+  "NECK",
+  "HAND",
+  "FACE",
+  "HEAD"
+ ],
+ "layer_notes": {
+  "BACK": "wings, capes, backpacks, jetpack",
+  "TAIL": "tails (replaces default tail)",
+  "BASE": "base black cat",
+  "TEXTURE": "full-body overlays / auras",
+  "BODY": "shirts, jackets, armor, suits",
+  "NECK": "collars, dog tags, medals",
+  "HAND": "held accessory (bubble wand)",
+  "FACE": "glasses",
+  "HEAD": "caps, helmets, horns, hats"
+ },
+ "one_item_per_slot": true,
+ "items": {
+  "bubble_aura": {
+   "name": "Bubble Aura",
+   "layer": "TEXTURE",
+   "row": 1
+  },
+  "crystal_skin": {
+   "name": "Crystal Skin",
+   "layer": "TEXTURE",
+   "row": 1
+  },
+  "stone_skin": {
+   "name": "Stone Golem Skin",
+   "layer": "TEXTURE",
+   "row": 1
+  },
+  "baseball_cap": {
+   "name": "Baseball Cap",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "backwards_cap": {
+   "name": "Backwards Cap",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "bandana_headwrap": {
+   "name": "Bandana Headwrap",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "dino_crown": {
+   "name": "Dino Spike Crown",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "knight_helmet": {
+   "name": "Knight Helmet",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "dragon_horn": {
+   "name": "Dragon Horns",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "crystal_horns": {
+   "name": "Crystal Horns",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "bubble_horns": {
+   "name": "Bubble Horns",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "gargoyle_horns": {
+   "name": "Gargoyle Horns",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "safari_hat": {
+   "name": "Safari Hat",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "beanie": {
+   "name": "Cozy Beanie",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "captain_hat": {
+   "name": "Captain Hat",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "wizard_hat": {
+   "name": "Adventurer Wizard Hat",
+   "layer": "HEAD",
+   "row": 2
+  },
+  "round_glasses": {
+   "name": "Round Glasses",
+   "layer": "FACE",
+   "row": 3
+  },
+  "aviator_glasses": {
+   "name": "Aviator Glasses",
+   "layer": "FACE",
+   "row": 3
+  },
+  "star_glasses": {
+   "name": "Star Glasses",
+   "layer": "FACE",
+   "row": 3
+  },
+  "cute_collar": {
+   "name": "Bell Collar",
+   "layer": "NECK",
+   "row": 3
+  },
+  "bow_tie": {
+   "name": "Bow Tie",
+   "layer": "NECK",
+   "row": 3
+  },
+  "dog_tag_necklace": {
+   "name": "Dog Tag Necklace",
+   "layer": "NECK",
+   "row": 3
+  },
+  "rainbow_scarf": {
+   "name": "Rainbow Scarf",
+   "layer": "NECK",
+   "row": 3
+  },
+  "fluffy_winter_scarf": {
+   "name": "Fluffy Winter Scarf",
+   "layer": "NECK",
+   "row": 3
+  },
+  "rainbow_tshirt": {
+   "name": "Rainbow T-Shirt",
+   "layer": "BODY",
+   "row": 4
+  },
+  "superhero_shirt": {
+   "name": "Superhero Shirt",
+   "layer": "BODY",
+   "row": 4
+  },
+  "star_hoodie": {
+   "name": "Star Hoodie",
+   "layer": "BODY",
+   "row": 4
+  },
+  "knight_armor": {
+   "name": "Knight Armor",
+   "layer": "BODY",
+   "row": 4
+  },
+  "astronaut_suit": {
+   "name": "Astronaut Suit",
+   "layer": "BODY",
+   "row": 4
+  },
+  "pirate_vest": {
+   "name": "Pirate Vest",
+   "layer": "BODY",
+   "row": 4
+  },
+  "raincoat": {
+   "name": "Yellow Raincoat",
+   "layer": "BODY",
+   "row": 4
+  },
+  "puffer_jacket": {
+   "name": "Puffer Jacket",
+   "layer": "BODY",
+   "row": 4
+  },
+  "winter_sweater": {
+   "name": "Winter Sweater",
+   "layer": "BODY",
+   "row": 4
+  },
+  "robot_suit": {
+   "name": "Robot Suit",
+   "layer": "BODY",
+   "row": 4
+  },
+  "dragon_wings": {
+   "name": "Dragon Wings",
+   "layer": "BACK",
+   "row": 5
+  },
+  "jetpack": {
+   "name": "Jetpack",
+   "layer": "BACK",
+   "row": 5
+  },
+  "angel_wings": {
+   "name": "Angel Wings",
+   "layer": "BACK",
+   "row": 5
+  },
+  "crystal_wings": {
+   "name": "Crystal Wings",
+   "layer": "BACK",
+   "row": 5
+  },
+  "floating_stones": {
+   "name": "Floating Stones",
+   "layer": "BACK",
+   "row": 5
+  },
+  "bubble_wings": {
+   "name": "Bubble Wings",
+   "layer": "BACK",
+   "row": 5
+  },
+  "stone_gargoyle_wings": {
+   "name": "Gargoyle Wings",
+   "layer": "BACK",
+   "row": 5
+  },
+  "robot_backpack": {
+   "name": "Robot Backpack",
+   "layer": "BACK",
+   "row": 5
+  },
+  "star_backpack": {
+   "name": "Star Backpack",
+   "layer": "BACK",
+   "row": 5
+  },
+  "superhero_cape": {
+   "name": "Superhero Cape",
+   "layer": "BACK",
+   "row": 5
+  },
+  "mossy_cape": {
+   "name": "Mossy Cape",
+   "layer": "BACK",
+   "row": 5
+  },
+  "bubble_wand": {
+   "name": "Bubble Wand",
+   "layer": "HAND",
+   "row": 5
+  },
+  "dragon_tail": {
+   "name": "Dragon Tail",
+   "layer": "TAIL",
+   "row": 6
+  },
+  "shark_tail": {
+   "name": "Shark Tail",
+   "layer": "TAIL",
+   "row": 6
+  },
+  "demon_tail": {
+   "name": "Cute Demon Tail",
+   "layer": "TAIL",
+   "row": 6
+  },
+  "crystal_tail": {
+   "name": "Crystal-Studded Tail",
+   "layer": "TAIL",
+   "row": 6
+  },
+  "warlock_hat": {
+   "name": "Warlock Hat",
+   "layer": "HEAD",
+   "row": 7
+  },
+  "bat_wings": {
+   "name": "Bat Wings",
+   "layer": "BACK",
+   "row": 7
+  },
+  "pumpkin_sweater": {
+   "name": "Pumpkin Sweater",
+   "layer": "BODY",
+   "row": 7
+  },
+  "vampire_cape": {
+   "name": "Vampire Cape",
+   "layer": "BACK",
+   "row": 7
+  },
+  "candy_corn_collar": {
+   "name": "Candy Corn Collar",
+   "layer": "NECK",
+   "row": 7
+  },
+  "leaf_crown": {
+   "name": "Autumn Leaf Crown",
+   "layer": "HEAD",
+   "row": 7
+  },
+  "flannel_shirt": {
+   "name": "Cozy Flannel Shirt",
+   "layer": "BODY",
+   "row": 7
+  },
+  "acorn_necklace": {
+   "name": "Acorn Necklace",
+   "layer": "NECK",
+   "row": 7
+  },
+  "fall_scarf": {
+   "name": "Fall Colors Scarf",
+   "layer": "NECK",
+   "row": 7
+  },
+  "santa_hat": {
+   "name": "Santa Hat",
+   "layer": "HEAD",
+   "row": 8
+  },
+  "reindeer_antlers": {
+   "name": "Reindeer Antlers",
+   "layer": "HEAD",
+   "row": 8
+  },
+  "string_lights": {
+   "name": "String Lights Necklace",
+   "layer": "NECK",
+   "row": 8
+  },
+  "elf_outfit": {
+   "name": "Elf Outfit",
+   "layer": "BODY",
+   "row": 8
+  },
+  "snowy_aura": {
+   "name": "Snowy Aura",
+   "layer": "TEXTURE",
+   "row": 8
+  },
+  "santa_cape": {
+   "name": "Santa Cape",
+   "layer": "BACK",
+   "row": 8
+  },
+  "lightning_headband": {
+   "name": "Lightning Bolt Headband",
+   "layer": "HEAD",
+   "row": 8
+  },
+  "mini_rocket_wings": {
+   "name": "Mini Rocket Wings",
+   "layer": "BACK",
+   "row": 8
+  },
+  "team_jersey": {
+   "name": "Team Jersey",
+   "layer": "BODY",
+   "row": 8
+  },
+  "camo_jacket": {
+   "name": "Camo Jacket",
+   "layer": "BODY",
+   "row": 8
+  },
+  "medal_necklace": {
+   "name": "Medal Necklace",
+   "layer": "NECK",
+   "row": 8
+  }
+ },
+ "sprites": [
+  {
+   "id": "base_red_panda",
+   "name": "Base Red Panda — No Clothing or Accessories (Boy Edition)",
+   "type": "base",
+   "items": [],
+   "file": "sprites/base/base_red_panda.png",
+   "row": 1,
+   "col": 0,
+   "x": 0,
+   "y": 0,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bubble_aura_standalone",
+   "name": "Bubble Aura — Standalone",
+   "type": "standalone",
+   "item": "bubble_aura",
+   "layer": "TEXTURE",
+   "file": "sprites/standalone/bubble_aura.png",
+   "row": 1,
+   "col": 1,
+   "x": 64,
+   "y": 0,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bubble_aura_equipped",
+   "name": "Bubble Aura — Equipped",
+   "type": "equipped",
+   "item": "bubble_aura",
+   "layer": "TEXTURE",
+   "items": [
+    "bubble_aura"
+   ],
+   "file": "sprites/equipped/bubble_aura.png",
+   "row": 1,
+   "col": 2,
+   "x": 128,
+   "y": 0,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "crystal_skin_standalone",
+   "name": "Crystal Skin — Standalone",
+   "type": "standalone",
+   "item": "crystal_skin",
+   "layer": "TEXTURE",
+   "file": "sprites/standalone/crystal_skin.png",
+   "row": 1,
+   "col": 3,
+   "x": 192,
+   "y": 0,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "crystal_skin_equipped",
+   "name": "Crystal Skin — Equipped",
+   "type": "equipped",
+   "item": "crystal_skin",
+   "layer": "TEXTURE",
+   "items": [
+    "crystal_skin"
+   ],
+   "file": "sprites/equipped/crystal_skin.png",
+   "row": 1,
+   "col": 4,
+   "x": 256,
+   "y": 0,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "stone_skin_standalone",
+   "name": "Stone Golem Skin — Standalone",
+   "type": "standalone",
+   "item": "stone_skin",
+   "layer": "TEXTURE",
+   "file": "sprites/standalone/stone_skin.png",
+   "row": 1,
+   "col": 5,
+   "x": 320,
+   "y": 0,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "stone_skin_equipped",
+   "name": "Stone Golem Skin — Equipped",
+   "type": "equipped",
+   "item": "stone_skin",
+   "layer": "TEXTURE",
+   "items": [
+    "stone_skin"
+   ],
+   "file": "sprites/equipped/stone_skin.png",
+   "row": 1,
+   "col": 6,
+   "x": 384,
+   "y": 0,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "baseball_cap_standalone",
+   "name": "Baseball Cap — Standalone",
+   "type": "standalone",
+   "item": "baseball_cap",
+   "layer": "HEAD",
+   "file": "sprites/standalone/baseball_cap.png",
+   "row": 2,
+   "col": 0,
+   "x": 0,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "baseball_cap_equipped",
+   "name": "Baseball Cap — Equipped",
+   "type": "equipped",
+   "item": "baseball_cap",
+   "layer": "HEAD",
+   "items": [
+    "baseball_cap"
+   ],
+   "file": "sprites/equipped/baseball_cap.png",
+   "row": 2,
+   "col": 1,
+   "x": 64,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "backwards_cap_standalone",
+   "name": "Backwards Cap — Standalone",
+   "type": "standalone",
+   "item": "backwards_cap",
+   "layer": "HEAD",
+   "file": "sprites/standalone/backwards_cap.png",
+   "row": 2,
+   "col": 2,
+   "x": 128,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "backwards_cap_equipped",
+   "name": "Backwards Cap — Equipped",
+   "type": "equipped",
+   "item": "backwards_cap",
+   "layer": "HEAD",
+   "items": [
+    "backwards_cap"
+   ],
+   "file": "sprites/equipped/backwards_cap.png",
+   "row": 2,
+   "col": 3,
+   "x": 192,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bandana_headwrap_standalone",
+   "name": "Bandana Headwrap — Standalone",
+   "type": "standalone",
+   "item": "bandana_headwrap",
+   "layer": "HEAD",
+   "file": "sprites/standalone/bandana_headwrap.png",
+   "row": 2,
+   "col": 4,
+   "x": 256,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bandana_headwrap_equipped",
+   "name": "Bandana Headwrap — Equipped",
+   "type": "equipped",
+   "item": "bandana_headwrap",
+   "layer": "HEAD",
+   "items": [
+    "bandana_headwrap"
+   ],
+   "file": "sprites/equipped/bandana_headwrap.png",
+   "row": 2,
+   "col": 5,
+   "x": 320,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dino_crown_standalone",
+   "name": "Dino Spike Crown — Standalone",
+   "type": "standalone",
+   "item": "dino_crown",
+   "layer": "HEAD",
+   "file": "sprites/standalone/dino_crown.png",
+   "row": 2,
+   "col": 6,
+   "x": 384,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dino_crown_equipped",
+   "name": "Dino Spike Crown — Equipped",
+   "type": "equipped",
+   "item": "dino_crown",
+   "layer": "HEAD",
+   "items": [
+    "dino_crown"
+   ],
+   "file": "sprites/equipped/dino_crown.png",
+   "row": 2,
+   "col": 7,
+   "x": 448,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "knight_helmet_standalone",
+   "name": "Knight Helmet — Standalone",
+   "type": "standalone",
+   "item": "knight_helmet",
+   "layer": "HEAD",
+   "file": "sprites/standalone/knight_helmet.png",
+   "row": 2,
+   "col": 8,
+   "x": 512,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "knight_helmet_equipped",
+   "name": "Knight Helmet — Equipped",
+   "type": "equipped",
+   "item": "knight_helmet",
+   "layer": "HEAD",
+   "items": [
+    "knight_helmet"
+   ],
+   "file": "sprites/equipped/knight_helmet.png",
+   "row": 2,
+   "col": 9,
+   "x": 576,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dragon_horn_standalone",
+   "name": "Dragon Horns — Standalone",
+   "type": "standalone",
+   "item": "dragon_horn",
+   "layer": "HEAD",
+   "file": "sprites/standalone/dragon_horn.png",
+   "row": 2,
+   "col": 10,
+   "x": 640,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dragon_horn_equipped",
+   "name": "Dragon Horns — Equipped",
+   "type": "equipped",
+   "item": "dragon_horn",
+   "layer": "HEAD",
+   "items": [
+    "dragon_horn"
+   ],
+   "file": "sprites/equipped/dragon_horn.png",
+   "row": 2,
+   "col": 11,
+   "x": 704,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "crystal_horns_standalone",
+   "name": "Crystal Horns — Standalone",
+   "type": "standalone",
+   "item": "crystal_horns",
+   "layer": "HEAD",
+   "file": "sprites/standalone/crystal_horns.png",
+   "row": 2,
+   "col": 12,
+   "x": 768,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "crystal_horns_equipped",
+   "name": "Crystal Horns — Equipped",
+   "type": "equipped",
+   "item": "crystal_horns",
+   "layer": "HEAD",
+   "items": [
+    "crystal_horns"
+   ],
+   "file": "sprites/equipped/crystal_horns.png",
+   "row": 2,
+   "col": 13,
+   "x": 832,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bubble_horns_standalone",
+   "name": "Bubble Horns — Standalone",
+   "type": "standalone",
+   "item": "bubble_horns",
+   "layer": "HEAD",
+   "file": "sprites/standalone/bubble_horns.png",
+   "row": 2,
+   "col": 14,
+   "x": 896,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bubble_horns_equipped",
+   "name": "Bubble Horns — Equipped",
+   "type": "equipped",
+   "item": "bubble_horns",
+   "layer": "HEAD",
+   "items": [
+    "bubble_horns"
+   ],
+   "file": "sprites/equipped/bubble_horns.png",
+   "row": 2,
+   "col": 15,
+   "x": 960,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "gargoyle_horns_standalone",
+   "name": "Gargoyle Horns — Standalone",
+   "type": "standalone",
+   "item": "gargoyle_horns",
+   "layer": "HEAD",
+   "file": "sprites/standalone/gargoyle_horns.png",
+   "row": 2,
+   "col": 16,
+   "x": 1024,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "gargoyle_horns_equipped",
+   "name": "Gargoyle Horns — Equipped",
+   "type": "equipped",
+   "item": "gargoyle_horns",
+   "layer": "HEAD",
+   "items": [
+    "gargoyle_horns"
+   ],
+   "file": "sprites/equipped/gargoyle_horns.png",
+   "row": 2,
+   "col": 17,
+   "x": 1088,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "safari_hat_standalone",
+   "name": "Safari Hat — Standalone",
+   "type": "standalone",
+   "item": "safari_hat",
+   "layer": "HEAD",
+   "file": "sprites/standalone/safari_hat.png",
+   "row": 2,
+   "col": 18,
+   "x": 1152,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "safari_hat_equipped",
+   "name": "Safari Hat — Equipped",
+   "type": "equipped",
+   "item": "safari_hat",
+   "layer": "HEAD",
+   "items": [
+    "safari_hat"
+   ],
+   "file": "sprites/equipped/safari_hat.png",
+   "row": 2,
+   "col": 19,
+   "x": 1216,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "beanie_standalone",
+   "name": "Cozy Beanie — Standalone",
+   "type": "standalone",
+   "item": "beanie",
+   "layer": "HEAD",
+   "file": "sprites/standalone/beanie.png",
+   "row": 2,
+   "col": 20,
+   "x": 1280,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "beanie_equipped",
+   "name": "Cozy Beanie — Equipped",
+   "type": "equipped",
+   "item": "beanie",
+   "layer": "HEAD",
+   "items": [
+    "beanie"
+   ],
+   "file": "sprites/equipped/beanie.png",
+   "row": 2,
+   "col": 21,
+   "x": 1344,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "captain_hat_standalone",
+   "name": "Captain Hat — Standalone",
+   "type": "standalone",
+   "item": "captain_hat",
+   "layer": "HEAD",
+   "file": "sprites/standalone/captain_hat.png",
+   "row": 2,
+   "col": 22,
+   "x": 1408,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "captain_hat_equipped",
+   "name": "Captain Hat — Equipped",
+   "type": "equipped",
+   "item": "captain_hat",
+   "layer": "HEAD",
+   "items": [
+    "captain_hat"
+   ],
+   "file": "sprites/equipped/captain_hat.png",
+   "row": 2,
+   "col": 23,
+   "x": 1472,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "wizard_hat_standalone",
+   "name": "Adventurer Wizard Hat — Standalone",
+   "type": "standalone",
+   "item": "wizard_hat",
+   "layer": "HEAD",
+   "file": "sprites/standalone/wizard_hat.png",
+   "row": 2,
+   "col": 24,
+   "x": 1536,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "wizard_hat_equipped",
+   "name": "Adventurer Wizard Hat — Equipped",
+   "type": "equipped",
+   "item": "wizard_hat",
+   "layer": "HEAD",
+   "items": [
+    "wizard_hat"
+   ],
+   "file": "sprites/equipped/wizard_hat.png",
+   "row": 2,
+   "col": 25,
+   "x": 1600,
+   "y": 64,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "round_glasses_standalone",
+   "name": "Round Glasses — Standalone",
+   "type": "standalone",
+   "item": "round_glasses",
+   "layer": "FACE",
+   "file": "sprites/standalone/round_glasses.png",
+   "row": 3,
+   "col": 0,
+   "x": 0,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "round_glasses_equipped",
+   "name": "Round Glasses — Equipped",
+   "type": "equipped",
+   "item": "round_glasses",
+   "layer": "FACE",
+   "items": [
+    "round_glasses"
+   ],
+   "file": "sprites/equipped/round_glasses.png",
+   "row": 3,
+   "col": 1,
+   "x": 64,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "aviator_glasses_standalone",
+   "name": "Aviator Glasses — Standalone",
+   "type": "standalone",
+   "item": "aviator_glasses",
+   "layer": "FACE",
+   "file": "sprites/standalone/aviator_glasses.png",
+   "row": 3,
+   "col": 2,
+   "x": 128,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "aviator_glasses_equipped",
+   "name": "Aviator Glasses — Equipped",
+   "type": "equipped",
+   "item": "aviator_glasses",
+   "layer": "FACE",
+   "items": [
+    "aviator_glasses"
+   ],
+   "file": "sprites/equipped/aviator_glasses.png",
+   "row": 3,
+   "col": 3,
+   "x": 192,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "star_glasses_standalone",
+   "name": "Star Glasses — Standalone",
+   "type": "standalone",
+   "item": "star_glasses",
+   "layer": "FACE",
+   "file": "sprites/standalone/star_glasses.png",
+   "row": 3,
+   "col": 4,
+   "x": 256,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "star_glasses_equipped",
+   "name": "Star Glasses — Equipped",
+   "type": "equipped",
+   "item": "star_glasses",
+   "layer": "FACE",
+   "items": [
+    "star_glasses"
+   ],
+   "file": "sprites/equipped/star_glasses.png",
+   "row": 3,
+   "col": 5,
+   "x": 320,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "cute_collar_standalone",
+   "name": "Bell Collar — Standalone",
+   "type": "standalone",
+   "item": "cute_collar",
+   "layer": "NECK",
+   "file": "sprites/standalone/cute_collar.png",
+   "row": 3,
+   "col": 6,
+   "x": 384,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "cute_collar_equipped",
+   "name": "Bell Collar — Equipped",
+   "type": "equipped",
+   "item": "cute_collar",
+   "layer": "NECK",
+   "items": [
+    "cute_collar"
+   ],
+   "file": "sprites/equipped/cute_collar.png",
+   "row": 3,
+   "col": 7,
+   "x": 448,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bow_tie_standalone",
+   "name": "Bow Tie — Standalone",
+   "type": "standalone",
+   "item": "bow_tie",
+   "layer": "NECK",
+   "file": "sprites/standalone/bow_tie.png",
+   "row": 3,
+   "col": 8,
+   "x": 512,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bow_tie_equipped",
+   "name": "Bow Tie — Equipped",
+   "type": "equipped",
+   "item": "bow_tie",
+   "layer": "NECK",
+   "items": [
+    "bow_tie"
+   ],
+   "file": "sprites/equipped/bow_tie.png",
+   "row": 3,
+   "col": 9,
+   "x": 576,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dog_tag_necklace_standalone",
+   "name": "Dog Tag Necklace — Standalone",
+   "type": "standalone",
+   "item": "dog_tag_necklace",
+   "layer": "NECK",
+   "file": "sprites/standalone/dog_tag_necklace.png",
+   "row": 3,
+   "col": 10,
+   "x": 640,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dog_tag_necklace_equipped",
+   "name": "Dog Tag Necklace — Equipped",
+   "type": "equipped",
+   "item": "dog_tag_necklace",
+   "layer": "NECK",
+   "items": [
+    "dog_tag_necklace"
+   ],
+   "file": "sprites/equipped/dog_tag_necklace.png",
+   "row": 3,
+   "col": 11,
+   "x": 704,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "rainbow_scarf_standalone",
+   "name": "Rainbow Scarf — Standalone",
+   "type": "standalone",
+   "item": "rainbow_scarf",
+   "layer": "NECK",
+   "file": "sprites/standalone/rainbow_scarf.png",
+   "row": 3,
+   "col": 12,
+   "x": 768,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "rainbow_scarf_equipped",
+   "name": "Rainbow Scarf — Equipped",
+   "type": "equipped",
+   "item": "rainbow_scarf",
+   "layer": "NECK",
+   "items": [
+    "rainbow_scarf"
+   ],
+   "file": "sprites/equipped/rainbow_scarf.png",
+   "row": 3,
+   "col": 13,
+   "x": 832,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "fluffy_winter_scarf_standalone",
+   "name": "Fluffy Winter Scarf — Standalone",
+   "type": "standalone",
+   "item": "fluffy_winter_scarf",
+   "layer": "NECK",
+   "file": "sprites/standalone/fluffy_winter_scarf.png",
+   "row": 3,
+   "col": 14,
+   "x": 896,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "fluffy_winter_scarf_equipped",
+   "name": "Fluffy Winter Scarf — Equipped",
+   "type": "equipped",
+   "item": "fluffy_winter_scarf",
+   "layer": "NECK",
+   "items": [
+    "fluffy_winter_scarf"
+   ],
+   "file": "sprites/equipped/fluffy_winter_scarf.png",
+   "row": 3,
+   "col": 15,
+   "x": 960,
+   "y": 128,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "rainbow_tshirt_standalone",
+   "name": "Rainbow T-Shirt — Standalone",
+   "type": "standalone",
+   "item": "rainbow_tshirt",
+   "layer": "BODY",
+   "file": "sprites/standalone/rainbow_tshirt.png",
+   "row": 4,
+   "col": 0,
+   "x": 0,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "rainbow_tshirt_equipped",
+   "name": "Rainbow T-Shirt — Equipped",
+   "type": "equipped",
+   "item": "rainbow_tshirt",
+   "layer": "BODY",
+   "items": [
+    "rainbow_tshirt"
+   ],
+   "file": "sprites/equipped/rainbow_tshirt.png",
+   "row": 4,
+   "col": 1,
+   "x": 64,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "superhero_shirt_standalone",
+   "name": "Superhero Shirt — Standalone",
+   "type": "standalone",
+   "item": "superhero_shirt",
+   "layer": "BODY",
+   "file": "sprites/standalone/superhero_shirt.png",
+   "row": 4,
+   "col": 2,
+   "x": 128,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "superhero_shirt_equipped",
+   "name": "Superhero Shirt — Equipped",
+   "type": "equipped",
+   "item": "superhero_shirt",
+   "layer": "BODY",
+   "items": [
+    "superhero_shirt"
+   ],
+   "file": "sprites/equipped/superhero_shirt.png",
+   "row": 4,
+   "col": 3,
+   "x": 192,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "star_hoodie_standalone",
+   "name": "Star Hoodie — Standalone",
+   "type": "standalone",
+   "item": "star_hoodie",
+   "layer": "BODY",
+   "file": "sprites/standalone/star_hoodie.png",
+   "row": 4,
+   "col": 4,
+   "x": 256,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "star_hoodie_equipped",
+   "name": "Star Hoodie — Equipped",
+   "type": "equipped",
+   "item": "star_hoodie",
+   "layer": "BODY",
+   "items": [
+    "star_hoodie"
+   ],
+   "file": "sprites/equipped/star_hoodie.png",
+   "row": 4,
+   "col": 5,
+   "x": 320,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "knight_armor_standalone",
+   "name": "Knight Armor — Standalone",
+   "type": "standalone",
+   "item": "knight_armor",
+   "layer": "BODY",
+   "file": "sprites/standalone/knight_armor.png",
+   "row": 4,
+   "col": 6,
+   "x": 384,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "knight_armor_equipped",
+   "name": "Knight Armor — Equipped",
+   "type": "equipped",
+   "item": "knight_armor",
+   "layer": "BODY",
+   "items": [
+    "knight_armor"
+   ],
+   "file": "sprites/equipped/knight_armor.png",
+   "row": 4,
+   "col": 7,
+   "x": 448,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "astronaut_suit_standalone",
+   "name": "Astronaut Suit — Standalone",
+   "type": "standalone",
+   "item": "astronaut_suit",
+   "layer": "BODY",
+   "file": "sprites/standalone/astronaut_suit.png",
+   "row": 4,
+   "col": 8,
+   "x": 512,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "astronaut_suit_equipped",
+   "name": "Astronaut Suit — Equipped",
+   "type": "equipped",
+   "item": "astronaut_suit",
+   "layer": "BODY",
+   "items": [
+    "astronaut_suit"
+   ],
+   "file": "sprites/equipped/astronaut_suit.png",
+   "row": 4,
+   "col": 9,
+   "x": 576,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pirate_vest_standalone",
+   "name": "Pirate Vest — Standalone",
+   "type": "standalone",
+   "item": "pirate_vest",
+   "layer": "BODY",
+   "file": "sprites/standalone/pirate_vest.png",
+   "row": 4,
+   "col": 10,
+   "x": 640,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pirate_vest_equipped",
+   "name": "Pirate Vest — Equipped",
+   "type": "equipped",
+   "item": "pirate_vest",
+   "layer": "BODY",
+   "items": [
+    "pirate_vest"
+   ],
+   "file": "sprites/equipped/pirate_vest.png",
+   "row": 4,
+   "col": 11,
+   "x": 704,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "raincoat_standalone",
+   "name": "Yellow Raincoat — Standalone",
+   "type": "standalone",
+   "item": "raincoat",
+   "layer": "BODY",
+   "file": "sprites/standalone/raincoat.png",
+   "row": 4,
+   "col": 12,
+   "x": 768,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "raincoat_equipped",
+   "name": "Yellow Raincoat — Equipped",
+   "type": "equipped",
+   "item": "raincoat",
+   "layer": "BODY",
+   "items": [
+    "raincoat"
+   ],
+   "file": "sprites/equipped/raincoat.png",
+   "row": 4,
+   "col": 13,
+   "x": 832,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "puffer_jacket_standalone",
+   "name": "Puffer Jacket — Standalone",
+   "type": "standalone",
+   "item": "puffer_jacket",
+   "layer": "BODY",
+   "file": "sprites/standalone/puffer_jacket.png",
+   "row": 4,
+   "col": 14,
+   "x": 896,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "puffer_jacket_equipped",
+   "name": "Puffer Jacket — Equipped",
+   "type": "equipped",
+   "item": "puffer_jacket",
+   "layer": "BODY",
+   "items": [
+    "puffer_jacket"
+   ],
+   "file": "sprites/equipped/puffer_jacket.png",
+   "row": 4,
+   "col": 15,
+   "x": 960,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "winter_sweater_standalone",
+   "name": "Winter Sweater — Standalone",
+   "type": "standalone",
+   "item": "winter_sweater",
+   "layer": "BODY",
+   "file": "sprites/standalone/winter_sweater.png",
+   "row": 4,
+   "col": 16,
+   "x": 1024,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "winter_sweater_equipped",
+   "name": "Winter Sweater — Equipped",
+   "type": "equipped",
+   "item": "winter_sweater",
+   "layer": "BODY",
+   "items": [
+    "winter_sweater"
+   ],
+   "file": "sprites/equipped/winter_sweater.png",
+   "row": 4,
+   "col": 17,
+   "x": 1088,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "robot_suit_standalone",
+   "name": "Robot Suit — Standalone",
+   "type": "standalone",
+   "item": "robot_suit",
+   "layer": "BODY",
+   "file": "sprites/standalone/robot_suit.png",
+   "row": 4,
+   "col": 18,
+   "x": 1152,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "robot_suit_equipped",
+   "name": "Robot Suit — Equipped",
+   "type": "equipped",
+   "item": "robot_suit",
+   "layer": "BODY",
+   "items": [
+    "robot_suit"
+   ],
+   "file": "sprites/equipped/robot_suit.png",
+   "row": 4,
+   "col": 19,
+   "x": 1216,
+   "y": 192,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dragon_wings_standalone",
+   "name": "Dragon Wings — Standalone",
+   "type": "standalone",
+   "item": "dragon_wings",
+   "layer": "BACK",
+   "file": "sprites/standalone/dragon_wings.png",
+   "row": 5,
+   "col": 0,
+   "x": 0,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dragon_wings_equipped",
+   "name": "Dragon Wings — Equipped",
+   "type": "equipped",
+   "item": "dragon_wings",
+   "layer": "BACK",
+   "items": [
+    "dragon_wings"
+   ],
+   "file": "sprites/equipped/dragon_wings.png",
+   "row": 5,
+   "col": 1,
+   "x": 64,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "jetpack_standalone",
+   "name": "Jetpack — Standalone",
+   "type": "standalone",
+   "item": "jetpack",
+   "layer": "BACK",
+   "file": "sprites/standalone/jetpack.png",
+   "row": 5,
+   "col": 2,
+   "x": 128,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "jetpack_equipped",
+   "name": "Jetpack — Equipped",
+   "type": "equipped",
+   "item": "jetpack",
+   "layer": "BACK",
+   "items": [
+    "jetpack"
+   ],
+   "file": "sprites/equipped/jetpack.png",
+   "row": 5,
+   "col": 3,
+   "x": 192,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "angel_wings_standalone",
+   "name": "Angel Wings — Standalone",
+   "type": "standalone",
+   "item": "angel_wings",
+   "layer": "BACK",
+   "file": "sprites/standalone/angel_wings.png",
+   "row": 5,
+   "col": 4,
+   "x": 256,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "angel_wings_equipped",
+   "name": "Angel Wings — Equipped",
+   "type": "equipped",
+   "item": "angel_wings",
+   "layer": "BACK",
+   "items": [
+    "angel_wings"
+   ],
+   "file": "sprites/equipped/angel_wings.png",
+   "row": 5,
+   "col": 5,
+   "x": 320,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "crystal_wings_standalone",
+   "name": "Crystal Wings — Standalone",
+   "type": "standalone",
+   "item": "crystal_wings",
+   "layer": "BACK",
+   "file": "sprites/standalone/crystal_wings.png",
+   "row": 5,
+   "col": 6,
+   "x": 384,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "crystal_wings_equipped",
+   "name": "Crystal Wings — Equipped",
+   "type": "equipped",
+   "item": "crystal_wings",
+   "layer": "BACK",
+   "items": [
+    "crystal_wings"
+   ],
+   "file": "sprites/equipped/crystal_wings.png",
+   "row": 5,
+   "col": 7,
+   "x": 448,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "floating_stones_standalone",
+   "name": "Floating Stones — Standalone",
+   "type": "standalone",
+   "item": "floating_stones",
+   "layer": "BACK",
+   "file": "sprites/standalone/floating_stones.png",
+   "row": 5,
+   "col": 8,
+   "x": 512,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "floating_stones_equipped",
+   "name": "Floating Stones — Equipped",
+   "type": "equipped",
+   "item": "floating_stones",
+   "layer": "BACK",
+   "items": [
+    "floating_stones"
+   ],
+   "file": "sprites/equipped/floating_stones.png",
+   "row": 5,
+   "col": 9,
+   "x": 576,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bubble_wings_standalone",
+   "name": "Bubble Wings — Standalone",
+   "type": "standalone",
+   "item": "bubble_wings",
+   "layer": "BACK",
+   "file": "sprites/standalone/bubble_wings.png",
+   "row": 5,
+   "col": 10,
+   "x": 640,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bubble_wings_equipped",
+   "name": "Bubble Wings — Equipped",
+   "type": "equipped",
+   "item": "bubble_wings",
+   "layer": "BACK",
+   "items": [
+    "bubble_wings"
+   ],
+   "file": "sprites/equipped/bubble_wings.png",
+   "row": 5,
+   "col": 11,
+   "x": 704,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "stone_gargoyle_wings_standalone",
+   "name": "Gargoyle Wings — Standalone",
+   "type": "standalone",
+   "item": "stone_gargoyle_wings",
+   "layer": "BACK",
+   "file": "sprites/standalone/stone_gargoyle_wings.png",
+   "row": 5,
+   "col": 12,
+   "x": 768,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "stone_gargoyle_wings_equipped",
+   "name": "Gargoyle Wings — Equipped",
+   "type": "equipped",
+   "item": "stone_gargoyle_wings",
+   "layer": "BACK",
+   "items": [
+    "stone_gargoyle_wings"
+   ],
+   "file": "sprites/equipped/stone_gargoyle_wings.png",
+   "row": 5,
+   "col": 13,
+   "x": 832,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "robot_backpack_standalone",
+   "name": "Robot Backpack — Standalone",
+   "type": "standalone",
+   "item": "robot_backpack",
+   "layer": "BACK",
+   "file": "sprites/standalone/robot_backpack.png",
+   "row": 5,
+   "col": 14,
+   "x": 896,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "robot_backpack_equipped",
+   "name": "Robot Backpack — Equipped",
+   "type": "equipped",
+   "item": "robot_backpack",
+   "layer": "BACK",
+   "items": [
+    "robot_backpack"
+   ],
+   "file": "sprites/equipped/robot_backpack.png",
+   "row": 5,
+   "col": 15,
+   "x": 960,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "star_backpack_standalone",
+   "name": "Star Backpack — Standalone",
+   "type": "standalone",
+   "item": "star_backpack",
+   "layer": "BACK",
+   "file": "sprites/standalone/star_backpack.png",
+   "row": 5,
+   "col": 16,
+   "x": 1024,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "star_backpack_equipped",
+   "name": "Star Backpack — Equipped",
+   "type": "equipped",
+   "item": "star_backpack",
+   "layer": "BACK",
+   "items": [
+    "star_backpack"
+   ],
+   "file": "sprites/equipped/star_backpack.png",
+   "row": 5,
+   "col": 17,
+   "x": 1088,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "superhero_cape_standalone",
+   "name": "Superhero Cape — Standalone",
+   "type": "standalone",
+   "item": "superhero_cape",
+   "layer": "BACK",
+   "file": "sprites/standalone/superhero_cape.png",
+   "row": 5,
+   "col": 18,
+   "x": 1152,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "superhero_cape_equipped",
+   "name": "Superhero Cape — Equipped",
+   "type": "equipped",
+   "item": "superhero_cape",
+   "layer": "BACK",
+   "items": [
+    "superhero_cape"
+   ],
+   "file": "sprites/equipped/superhero_cape.png",
+   "row": 5,
+   "col": 19,
+   "x": 1216,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "mossy_cape_standalone",
+   "name": "Mossy Cape — Standalone",
+   "type": "standalone",
+   "item": "mossy_cape",
+   "layer": "BACK",
+   "file": "sprites/standalone/mossy_cape.png",
+   "row": 5,
+   "col": 20,
+   "x": 1280,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "mossy_cape_equipped",
+   "name": "Mossy Cape — Equipped",
+   "type": "equipped",
+   "item": "mossy_cape",
+   "layer": "BACK",
+   "items": [
+    "mossy_cape"
+   ],
+   "file": "sprites/equipped/mossy_cape.png",
+   "row": 5,
+   "col": 21,
+   "x": 1344,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bubble_wand_standalone",
+   "name": "Bubble Wand — Standalone",
+   "type": "standalone",
+   "item": "bubble_wand",
+   "layer": "HAND",
+   "file": "sprites/standalone/bubble_wand.png",
+   "row": 5,
+   "col": 22,
+   "x": 1408,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bubble_wand_equipped",
+   "name": "Bubble Wand — Equipped",
+   "type": "equipped",
+   "item": "bubble_wand",
+   "layer": "HAND",
+   "items": [
+    "bubble_wand"
+   ],
+   "file": "sprites/equipped/bubble_wand.png",
+   "row": 5,
+   "col": 23,
+   "x": 1472,
+   "y": 256,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dragon_tail_standalone",
+   "name": "Dragon Tail — Standalone",
+   "type": "standalone",
+   "item": "dragon_tail",
+   "layer": "TAIL",
+   "file": "sprites/standalone/dragon_tail.png",
+   "row": 6,
+   "col": 0,
+   "x": 0,
+   "y": 320,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "dragon_tail_equipped",
+   "name": "Dragon Tail — Equipped",
+   "type": "equipped",
+   "item": "dragon_tail",
+   "layer": "TAIL",
+   "items": [
+    "dragon_tail"
+   ],
+   "file": "sprites/equipped/dragon_tail.png",
+   "row": 6,
+   "col": 1,
+   "x": 64,
+   "y": 320,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "shark_tail_standalone",
+   "name": "Shark Tail — Standalone",
+   "type": "standalone",
+   "item": "shark_tail",
+   "layer": "TAIL",
+   "file": "sprites/standalone/shark_tail.png",
+   "row": 6,
+   "col": 2,
+   "x": 128,
+   "y": 320,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "shark_tail_equipped",
+   "name": "Shark Tail — Equipped",
+   "type": "equipped",
+   "item": "shark_tail",
+   "layer": "TAIL",
+   "items": [
+    "shark_tail"
+   ],
+   "file": "sprites/equipped/shark_tail.png",
+   "row": 6,
+   "col": 3,
+   "x": 192,
+   "y": 320,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "demon_tail_standalone",
+   "name": "Cute Demon Tail — Standalone",
+   "type": "standalone",
+   "item": "demon_tail",
+   "layer": "TAIL",
+   "file": "sprites/standalone/demon_tail.png",
+   "row": 6,
+   "col": 4,
+   "x": 256,
+   "y": 320,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "demon_tail_equipped",
+   "name": "Cute Demon Tail — Equipped",
+   "type": "equipped",
+   "item": "demon_tail",
+   "layer": "TAIL",
+   "items": [
+    "demon_tail"
+   ],
+   "file": "sprites/equipped/demon_tail.png",
+   "row": 6,
+   "col": 5,
+   "x": 320,
+   "y": 320,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "crystal_tail_standalone",
+   "name": "Crystal-Studded Tail — Standalone",
+   "type": "standalone",
+   "item": "crystal_tail",
+   "layer": "TAIL",
+   "file": "sprites/standalone/crystal_tail.png",
+   "row": 6,
+   "col": 6,
+   "x": 384,
+   "y": 320,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "crystal_tail_equipped",
+   "name": "Crystal-Studded Tail — Equipped",
+   "type": "equipped",
+   "item": "crystal_tail",
+   "layer": "TAIL",
+   "items": [
+    "crystal_tail"
+   ],
+   "file": "sprites/equipped/crystal_tail.png",
+   "row": 6,
+   "col": 7,
+   "x": 448,
+   "y": 320,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "warlock_hat_standalone",
+   "name": "Warlock Hat — Standalone",
+   "type": "standalone",
+   "item": "warlock_hat",
+   "layer": "HEAD",
+   "file": "sprites/standalone/warlock_hat.png",
+   "row": 7,
+   "col": 0,
+   "x": 0,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "warlock_hat_equipped",
+   "name": "Warlock Hat — Equipped",
+   "type": "equipped",
+   "item": "warlock_hat",
+   "layer": "HEAD",
+   "items": [
+    "warlock_hat"
+   ],
+   "file": "sprites/equipped/warlock_hat.png",
+   "row": 7,
+   "col": 1,
+   "x": 64,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bat_wings_standalone",
+   "name": "Bat Wings — Standalone",
+   "type": "standalone",
+   "item": "bat_wings",
+   "layer": "BACK",
+   "file": "sprites/standalone/bat_wings.png",
+   "row": 7,
+   "col": 2,
+   "x": 128,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "bat_wings_equipped",
+   "name": "Bat Wings — Equipped",
+   "type": "equipped",
+   "item": "bat_wings",
+   "layer": "BACK",
+   "items": [
+    "bat_wings"
+   ],
+   "file": "sprites/equipped/bat_wings.png",
+   "row": 7,
+   "col": 3,
+   "x": 192,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pumpkin_sweater_standalone",
+   "name": "Pumpkin Sweater — Standalone",
+   "type": "standalone",
+   "item": "pumpkin_sweater",
+   "layer": "BODY",
+   "file": "sprites/standalone/pumpkin_sweater.png",
+   "row": 7,
+   "col": 4,
+   "x": 256,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pumpkin_sweater_equipped",
+   "name": "Pumpkin Sweater — Equipped",
+   "type": "equipped",
+   "item": "pumpkin_sweater",
+   "layer": "BODY",
+   "items": [
+    "pumpkin_sweater"
+   ],
+   "file": "sprites/equipped/pumpkin_sweater.png",
+   "row": 7,
+   "col": 5,
+   "x": 320,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "vampire_cape_standalone",
+   "name": "Vampire Cape — Standalone",
+   "type": "standalone",
+   "item": "vampire_cape",
+   "layer": "BACK",
+   "file": "sprites/standalone/vampire_cape.png",
+   "row": 7,
+   "col": 6,
+   "x": 384,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "vampire_cape_equipped",
+   "name": "Vampire Cape — Equipped",
+   "type": "equipped",
+   "item": "vampire_cape",
+   "layer": "BACK",
+   "items": [
+    "vampire_cape"
+   ],
+   "file": "sprites/equipped/vampire_cape.png",
+   "row": 7,
+   "col": 7,
+   "x": 448,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "candy_corn_collar_standalone",
+   "name": "Candy Corn Collar — Standalone",
+   "type": "standalone",
+   "item": "candy_corn_collar",
+   "layer": "NECK",
+   "file": "sprites/standalone/candy_corn_collar.png",
+   "row": 7,
+   "col": 8,
+   "x": 512,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "candy_corn_collar_equipped",
+   "name": "Candy Corn Collar — Equipped",
+   "type": "equipped",
+   "item": "candy_corn_collar",
+   "layer": "NECK",
+   "items": [
+    "candy_corn_collar"
+   ],
+   "file": "sprites/equipped/candy_corn_collar.png",
+   "row": 7,
+   "col": 9,
+   "x": 576,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "leaf_crown_standalone",
+   "name": "Autumn Leaf Crown — Standalone",
+   "type": "standalone",
+   "item": "leaf_crown",
+   "layer": "HEAD",
+   "file": "sprites/standalone/leaf_crown.png",
+   "row": 7,
+   "col": 10,
+   "x": 640,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "leaf_crown_equipped",
+   "name": "Autumn Leaf Crown — Equipped",
+   "type": "equipped",
+   "item": "leaf_crown",
+   "layer": "HEAD",
+   "items": [
+    "leaf_crown"
+   ],
+   "file": "sprites/equipped/leaf_crown.png",
+   "row": 7,
+   "col": 11,
+   "x": 704,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "flannel_shirt_standalone",
+   "name": "Cozy Flannel Shirt — Standalone",
+   "type": "standalone",
+   "item": "flannel_shirt",
+   "layer": "BODY",
+   "file": "sprites/standalone/flannel_shirt.png",
+   "row": 7,
+   "col": 12,
+   "x": 768,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "flannel_shirt_equipped",
+   "name": "Cozy Flannel Shirt — Equipped",
+   "type": "equipped",
+   "item": "flannel_shirt",
+   "layer": "BODY",
+   "items": [
+    "flannel_shirt"
+   ],
+   "file": "sprites/equipped/flannel_shirt.png",
+   "row": 7,
+   "col": 13,
+   "x": 832,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "acorn_necklace_standalone",
+   "name": "Acorn Necklace — Standalone",
+   "type": "standalone",
+   "item": "acorn_necklace",
+   "layer": "NECK",
+   "file": "sprites/standalone/acorn_necklace.png",
+   "row": 7,
+   "col": 14,
+   "x": 896,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "acorn_necklace_equipped",
+   "name": "Acorn Necklace — Equipped",
+   "type": "equipped",
+   "item": "acorn_necklace",
+   "layer": "NECK",
+   "items": [
+    "acorn_necklace"
+   ],
+   "file": "sprites/equipped/acorn_necklace.png",
+   "row": 7,
+   "col": 15,
+   "x": 960,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "fall_scarf_standalone",
+   "name": "Fall Colors Scarf — Standalone",
+   "type": "standalone",
+   "item": "fall_scarf",
+   "layer": "NECK",
+   "file": "sprites/standalone/fall_scarf.png",
+   "row": 7,
+   "col": 16,
+   "x": 1024,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "fall_scarf_equipped",
+   "name": "Fall Colors Scarf — Equipped",
+   "type": "equipped",
+   "item": "fall_scarf",
+   "layer": "NECK",
+   "items": [
+    "fall_scarf"
+   ],
+   "file": "sprites/equipped/fall_scarf.png",
+   "row": 7,
+   "col": 17,
+   "x": 1088,
+   "y": 384,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "santa_hat_standalone",
+   "name": "Santa Hat — Standalone",
+   "type": "standalone",
+   "item": "santa_hat",
+   "layer": "HEAD",
+   "file": "sprites/standalone/santa_hat.png",
+   "row": 8,
+   "col": 0,
+   "x": 0,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "santa_hat_equipped",
+   "name": "Santa Hat — Equipped",
+   "type": "equipped",
+   "item": "santa_hat",
+   "layer": "HEAD",
+   "items": [
+    "santa_hat"
+   ],
+   "file": "sprites/equipped/santa_hat.png",
+   "row": 8,
+   "col": 1,
+   "x": 64,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "reindeer_antlers_standalone",
+   "name": "Reindeer Antlers — Standalone",
+   "type": "standalone",
+   "item": "reindeer_antlers",
+   "layer": "HEAD",
+   "file": "sprites/standalone/reindeer_antlers.png",
+   "row": 8,
+   "col": 2,
+   "x": 128,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "reindeer_antlers_equipped",
+   "name": "Reindeer Antlers — Equipped",
+   "type": "equipped",
+   "item": "reindeer_antlers",
+   "layer": "HEAD",
+   "items": [
+    "reindeer_antlers"
+   ],
+   "file": "sprites/equipped/reindeer_antlers.png",
+   "row": 8,
+   "col": 3,
+   "x": 192,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "string_lights_standalone",
+   "name": "String Lights Necklace — Standalone",
+   "type": "standalone",
+   "item": "string_lights",
+   "layer": "NECK",
+   "file": "sprites/standalone/string_lights.png",
+   "row": 8,
+   "col": 4,
+   "x": 256,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "string_lights_equipped",
+   "name": "String Lights Necklace — Equipped",
+   "type": "equipped",
+   "item": "string_lights",
+   "layer": "NECK",
+   "items": [
+    "string_lights"
+   ],
+   "file": "sprites/equipped/string_lights.png",
+   "row": 8,
+   "col": 5,
+   "x": 320,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "elf_outfit_standalone",
+   "name": "Elf Outfit — Standalone",
+   "type": "standalone",
+   "item": "elf_outfit",
+   "layer": "BODY",
+   "file": "sprites/standalone/elf_outfit.png",
+   "row": 8,
+   "col": 6,
+   "x": 384,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "elf_outfit_equipped",
+   "name": "Elf Outfit — Equipped",
+   "type": "equipped",
+   "item": "elf_outfit",
+   "layer": "BODY",
+   "items": [
+    "elf_outfit"
+   ],
+   "file": "sprites/equipped/elf_outfit.png",
+   "row": 8,
+   "col": 7,
+   "x": 448,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "snowy_aura_standalone",
+   "name": "Snowy Aura — Standalone",
+   "type": "standalone",
+   "item": "snowy_aura",
+   "layer": "TEXTURE",
+   "file": "sprites/standalone/snowy_aura.png",
+   "row": 8,
+   "col": 8,
+   "x": 512,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "snowy_aura_equipped",
+   "name": "Snowy Aura — Equipped",
+   "type": "equipped",
+   "item": "snowy_aura",
+   "layer": "TEXTURE",
+   "items": [
+    "snowy_aura"
+   ],
+   "file": "sprites/equipped/snowy_aura.png",
+   "row": 8,
+   "col": 9,
+   "x": 576,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "santa_cape_standalone",
+   "name": "Santa Cape — Standalone",
+   "type": "standalone",
+   "item": "santa_cape",
+   "layer": "BACK",
+   "file": "sprites/standalone/santa_cape.png",
+   "row": 8,
+   "col": 10,
+   "x": 640,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "santa_cape_equipped",
+   "name": "Santa Cape — Equipped",
+   "type": "equipped",
+   "item": "santa_cape",
+   "layer": "BACK",
+   "items": [
+    "santa_cape"
+   ],
+   "file": "sprites/equipped/santa_cape.png",
+   "row": 8,
+   "col": 11,
+   "x": 704,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "lightning_headband_standalone",
+   "name": "Lightning Bolt Headband — Standalone",
+   "type": "standalone",
+   "item": "lightning_headband",
+   "layer": "HEAD",
+   "file": "sprites/standalone/lightning_headband.png",
+   "row": 8,
+   "col": 12,
+   "x": 768,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "lightning_headband_equipped",
+   "name": "Lightning Bolt Headband — Equipped",
+   "type": "equipped",
+   "item": "lightning_headband",
+   "layer": "HEAD",
+   "items": [
+    "lightning_headband"
+   ],
+   "file": "sprites/equipped/lightning_headband.png",
+   "row": 8,
+   "col": 13,
+   "x": 832,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "mini_rocket_wings_standalone",
+   "name": "Mini Rocket Wings — Standalone",
+   "type": "standalone",
+   "item": "mini_rocket_wings",
+   "layer": "BACK",
+   "file": "sprites/standalone/mini_rocket_wings.png",
+   "row": 8,
+   "col": 14,
+   "x": 896,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "mini_rocket_wings_equipped",
+   "name": "Mini Rocket Wings — Equipped",
+   "type": "equipped",
+   "item": "mini_rocket_wings",
+   "layer": "BACK",
+   "items": [
+    "mini_rocket_wings"
+   ],
+   "file": "sprites/equipped/mini_rocket_wings.png",
+   "row": 8,
+   "col": 15,
+   "x": 960,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "team_jersey_standalone",
+   "name": "Team Jersey — Standalone",
+   "type": "standalone",
+   "item": "team_jersey",
+   "layer": "BODY",
+   "file": "sprites/standalone/team_jersey.png",
+   "row": 8,
+   "col": 16,
+   "x": 1024,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "team_jersey_equipped",
+   "name": "Team Jersey — Equipped",
+   "type": "equipped",
+   "item": "team_jersey",
+   "layer": "BODY",
+   "items": [
+    "team_jersey"
+   ],
+   "file": "sprites/equipped/team_jersey.png",
+   "row": 8,
+   "col": 17,
+   "x": 1088,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "camo_jacket_standalone",
+   "name": "Camo Jacket — Standalone",
+   "type": "standalone",
+   "item": "camo_jacket",
+   "layer": "BODY",
+   "file": "sprites/standalone/camo_jacket.png",
+   "row": 8,
+   "col": 18,
+   "x": 1152,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "camo_jacket_equipped",
+   "name": "Camo Jacket — Equipped",
+   "type": "equipped",
+   "item": "camo_jacket",
+   "layer": "BODY",
+   "items": [
+    "camo_jacket"
+   ],
+   "file": "sprites/equipped/camo_jacket.png",
+   "row": 8,
+   "col": 19,
+   "x": 1216,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "medal_necklace_standalone",
+   "name": "Medal Necklace — Standalone",
+   "type": "standalone",
+   "item": "medal_necklace",
+   "layer": "NECK",
+   "file": "sprites/standalone/medal_necklace.png",
+   "row": 8,
+   "col": 20,
+   "x": 1280,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "medal_necklace_equipped",
+   "name": "Medal Necklace — Equipped",
+   "type": "equipped",
+   "item": "medal_necklace",
+   "layer": "NECK",
+   "items": [
+    "medal_necklace"
+   ],
+   "file": "sprites/equipped/medal_necklace.png",
+   "row": 8,
+   "col": 21,
+   "x": 1344,
+   "y": 448,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_crystal_dragon_knight",
+   "name": "Crystal Horns + Dragon Wings + Knight Armor",
+   "type": "combo",
+   "items": [
+    "crystal_horns",
+    "dragon_wings",
+    "knight_armor"
+   ],
+   "file": "sprites/combos/combo_crystal_dragon_knight.png",
+   "row": 9,
+   "col": 0,
+   "x": 0,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_halloween",
+   "name": "Halloween Combo",
+   "type": "combo",
+   "items": [
+    "warlock_hat",
+    "bat_wings",
+    "pumpkin_sweater",
+    "demon_tail"
+   ],
+   "file": "sprites/combos/combo_halloween.png",
+   "row": 9,
+   "col": 1,
+   "x": 64,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_christmas",
+   "name": "Christmas Combo",
+   "type": "combo",
+   "items": [
+    "reindeer_antlers",
+    "winter_sweater",
+    "fluffy_winter_scarf"
+   ],
+   "file": "sprites/combos/combo_christmas.png",
+   "row": 9,
+   "col": 2,
+   "x": 128,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_cool_explorer",
+   "name": "Aviator Glasses + Backwards Cap + Bubble Aura",
+   "type": "combo",
+   "items": [
+    "bubble_aura",
+    "aviator_glasses",
+    "backwards_cap"
+   ],
+   "file": "sprites/combos/combo_cool_explorer.png",
+   "row": 9,
+   "col": 3,
+   "x": 192,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_stone_golem",
+   "name": "Stone Texture + Mossy Cape + Safari Hat",
+   "type": "combo",
+   "items": [
+    "stone_skin",
+    "mossy_cape",
+    "safari_hat"
+   ],
+   "file": "sprites/combos/combo_stone_golem.png",
+   "row": 9,
+   "col": 4,
+   "x": 256,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "set_crystal_knight",
+   "name": "Crystal Knight Set",
+   "type": "set",
+   "items": [
+    "crystal_horns",
+    "knight_armor",
+    "crystal_wings",
+    "crystal_tail"
+   ],
+   "file": "sprites/combos/set_crystal_knight.png",
+   "row": 9,
+   "col": 5,
+   "x": 320,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "set_bubble_pop",
+   "name": "Bubble Pop Set",
+   "type": "set",
+   "items": [
+    "bubble_aura",
+    "bubble_wings",
+    "bubble_wand"
+   ],
+   "file": "sprites/combos/set_bubble_pop.png",
+   "row": 9,
+   "col": 6,
+   "x": 384,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "set_stone_guardian",
+   "name": "Stone Guardian Set",
+   "type": "set",
+   "items": [
+    "safari_hat",
+    "stone_skin",
+    "stone_gargoyle_wings"
+   ],
+   "file": "sprites/combos/set_stone_guardian.png",
+   "row": 9,
+   "col": 7,
+   "x": 448,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "set_spooky_halloween",
+   "name": "Spooky Halloween Set",
+   "type": "set",
+   "items": [
+    "warlock_hat",
+    "bat_wings",
+    "pumpkin_sweater",
+    "demon_tail"
+   ],
+   "file": "sprites/combos/set_spooky_halloween.png",
+   "row": 9,
+   "col": 8,
+   "x": 512,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "set_cozy_christmas",
+   "name": "Cozy Christmas Set",
+   "type": "set",
+   "items": [
+    "reindeer_antlers",
+    "santa_cape",
+    "string_lights"
+   ],
+   "file": "sprites/combos/set_cozy_christmas.png",
+   "row": 9,
+   "col": 9,
+   "x": 576,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "set_rocket_ranger",
+   "name": "Rocket Ranger Set",
+   "type": "set",
+   "items": [
+    "lightning_headband",
+    "mini_rocket_wings",
+    "camo_jacket"
+   ],
+   "file": "sprites/combos/set_rocket_ranger.png",
+   "row": 9,
+   "col": 10,
+   "x": 640,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "set_autumn_harvest",
+   "name": "Autumn Harvest Set",
+   "type": "set",
+   "items": [
+    "leaf_crown",
+    "flannel_shirt",
+    "fall_scarf"
+   ],
+   "file": "sprites/combos/set_autumn_harvest.png",
+   "row": 9,
+   "col": 11,
+   "x": 704,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_dragon_explorer",
+   "name": "Dragon Explorer",
+   "type": "combo",
+   "items": [
+    "dragon_horn",
+    "dragon_wings",
+    "pirate_vest",
+    "dragon_tail"
+   ],
+   "file": "sprites/combos/combo_dragon_explorer.png",
+   "row": 9,
+   "col": 12,
+   "x": 768,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_deep_sea",
+   "name": "Deep Sea Diver",
+   "type": "combo",
+   "items": [
+    "aviator_glasses",
+    "shark_tail",
+    "jetpack"
+   ],
+   "file": "sprites/combos/combo_deep_sea.png",
+   "row": 9,
+   "col": 13,
+   "x": 832,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_star_captain",
+   "name": "Star Captain",
+   "type": "combo",
+   "items": [
+    "captain_hat",
+    "superhero_shirt",
+    "star_backpack"
+   ],
+   "file": "sprites/combos/combo_star_captain.png",
+   "row": 9,
+   "col": 14,
+   "x": 896,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_camp_explorer",
+   "name": "Camp Explorer",
+   "type": "combo",
+   "items": [
+    "safari_hat",
+    "raincoat",
+    "robot_backpack",
+    "round_glasses"
+   ],
+   "file": "sprites/combos/combo_camp_explorer.png",
+   "row": 9,
+   "col": 15,
+   "x": 960,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_robo_knight",
+   "name": "Robo Knight",
+   "type": "combo",
+   "items": [
+    "knight_helmet",
+    "robot_suit",
+    "jetpack",
+    "dog_tag_necklace"
+   ],
+   "file": "sprites/combos/combo_robo_knight.png",
+   "row": 9,
+   "col": 16,
+   "x": 1024,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "combo_winter_adventurer",
+   "name": "Winter Adventurer",
+   "type": "combo",
+   "items": [
+    "beanie",
+    "puffer_jacket",
+    "fluffy_winter_scarf",
+    "snowy_aura"
+   ],
+   "file": "sprites/combos/combo_winter_adventurer.png",
+   "row": 9,
+   "col": 17,
+   "x": 1088,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pair_cap_glasses",
+   "name": "Baseball Cap + Aviator Glasses",
+   "type": "pair",
+   "items": [
+    "baseball_cap",
+    "aviator_glasses"
+   ],
+   "file": "sprites/combos/pair_cap_glasses.png",
+   "row": 9,
+   "col": 18,
+   "x": 1152,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pair_bandana_glasses_bowtie",
+   "name": "Bandana + Star Glasses + Bow Tie",
+   "type": "pair",
+   "items": [
+    "bandana_headwrap",
+    "star_glasses",
+    "bow_tie"
+   ],
+   "file": "sprites/combos/pair_bandana_glasses_bowtie.png",
+   "row": 9,
+   "col": 19,
+   "x": 1216,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pair_glasses_collar",
+   "name": "Round Glasses + Bell Collar",
+   "type": "pair",
+   "items": [
+    "round_glasses",
+    "cute_collar"
+   ],
+   "file": "sprites/combos/pair_glasses_collar.png",
+   "row": 9,
+   "col": 20,
+   "x": 1280,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pair_shirt_tag",
+   "name": "Superhero Shirt + Dog Tag Necklace",
+   "type": "pair",
+   "items": [
+    "superhero_shirt",
+    "dog_tag_necklace"
+   ],
+   "file": "sprites/combos/pair_shirt_tag.png",
+   "row": 9,
+   "col": 21,
+   "x": 1344,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pair_armor_tag",
+   "name": "Knight Armor + Dog Tag Necklace",
+   "type": "pair",
+   "items": [
+    "knight_armor",
+    "dog_tag_necklace"
+   ],
+   "file": "sprites/combos/pair_armor_tag.png",
+   "row": 9,
+   "col": 22,
+   "x": 1408,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pair_clothing_cape",
+   "name": "Rainbow T-Shirt + Superhero Cape",
+   "type": "pair",
+   "items": [
+    "rainbow_tshirt",
+    "superhero_cape"
+   ],
+   "file": "sprites/combos/pair_clothing_cape.png",
+   "row": 9,
+   "col": 23,
+   "x": 1472,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pair_costume_hat",
+   "name": "Pumpkin Sweater + Warlock Hat",
+   "type": "pair",
+   "items": [
+    "pumpkin_sweater",
+    "warlock_hat"
+   ],
+   "file": "sprites/combos/pair_costume_hat.png",
+   "row": 9,
+   "col": 24,
+   "x": 1536,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  },
+  {
+   "id": "pair_clothing_backpack",
+   "name": "Puffer Jacket + Robot Backpack",
+   "type": "pair",
+   "items": [
+    "puffer_jacket",
+    "robot_backpack"
+   ],
+   "file": "sprites/combos/pair_clothing_backpack.png",
+   "row": 9,
+   "col": 25,
+   "x": 1600,
+   "y": 512,
+   "w": 64,
+   "h": 64
+  }
+ ]
+}
