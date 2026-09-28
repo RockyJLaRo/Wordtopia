@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="mBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="50%" stop-color="#0369a1" />
+      <stop offset="100%" stop-color="#075985" />
+    </linearGradient>
+    <linearGradient id="mBookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="mPageGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+    <linearGradient id="mSwordGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Full bleed background for maskable icon -->
+  <rect width="512" height="512" fill="url(#mBgGrad)" />
+
+  <!-- Content scaled and centered in 75% safe area -->
+  <g transform="translate(256, 256) scale(0.72) translate(-256, -256)">
+    <!-- Book Spine & Cover -->
+    <path d="M 120 160 L 256 120 L 392 160 L 392 380 L 256 340 L 120 380 Z" fill="url(#mBookGrad)" stroke="#78350f" stroke-width="12" stroke-linejoin="round" />
+    
+    <!-- Left Page -->
+    <path d="M 136 172 L 246 136 L 246 326 L 136 362 Z" fill="url(#mPageGrad)" stroke="#94a3b8" stroke-width="4" />
+    <!-- Right Page -->
+    <path d="M 266 136 L 376 172 L 376 362 L 266 326 Z" fill="url(#mPageGrad)" stroke="#94a3b8" stroke-width="4" />
+    
+    <!-- Page text lines -->
+    <rect x="156" y="190" width="60" height="8" rx="2" fill="#64748b" />
+    <rect x="156" y="210" width="70" height="8" rx="2" fill="#94a3b8" />
+    <rect x="156" y="230" width="50" height="8" rx="2" fill="#94a3b8" />
+    <rect x="156" y="260" width="65" height="8" rx="2" fill="#64748b" />
+    <rect x="156" y="280" width="55" height="8" rx="2" fill="#94a3b8" />
+
+    <rect x="286" y="190" width="60" height="8" rx="2" fill="#64748b" />
+    <rect x="286" y="210" width="70" height="8" rx="2" fill="#94a3b8" />
+    <rect x="286" y="230" width="55" height="8" rx="2" fill="#94a3b8" />
+    <rect x="286" y="260" width="60" height="8" rx="2" fill="#64748b" />
+    <rect x="286" y="280" width="65" height="8" rx="2" fill="#94a3b8" />
+
+    <!-- Center Bookmark Ribbon -->
+    <path d="M 246 116 L 266 116 L 266 250 L 256 240 L 246 250 Z" fill="#ef4444" stroke="#991b1b" stroke-width="3" />
+
+    <!-- Crystal Diamond -->
+    <g transform="translate(256, 120) scale(0.9)">
+      <polygon points="0,-70 20,-30 0,-10 -20,-30" fill="url(#mSwordGrad)" stroke="#0c4a6e" stroke-width="6" />
+      <polygon points="0,-70 0,-10 20,-30" fill="#7dd3fc" opacity="0.6" />
+    </g>
+
+    <!-- Golden Stars -->
+    <polygon points="100,110 106,124 120,126 110,136 112,150 100,143 88,150 90,136 80,126 94,124" fill="#fbbf24" stroke="#b45309" stroke-width="3" />
+    <polygon points="412,110 418,124 432,126 422,136 424,150 412,143 400,150 402,136 392,126 406,124" fill="#fbbf24" stroke="#b45309" stroke-width="3" />
+
+    <!-- Bottom Brand Banner -->
+    <rect x="146" y="400" width="220" height="48" rx="16" fill="#0f172a" stroke="#38bdf8" stroke-width="4" />
+    <text x="256" y="432" font-family="'Impact', 'Arial Black', sans-serif" font-weight="900" font-size="24" fill="#f8fafc" text-anchor="middle" letter-spacing="2">WORDTOPIA</text>
+  </g>
+</svg>

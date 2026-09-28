@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- Background wireframe tile -->
+  <rect x="2" y="2" width="96" height="96" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 3"/>
+  <!-- Diagonal guidelines -->
+  <line x1="4" y1="4" x2="96" y2="96" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <line x1="96" y1="4" x2="4" y2="96" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <!-- Center icon box -->
+  <rect x="26" y="26" width="48" height="48" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.5"/>
+  <!-- Mountain & Sun placeholder glyph -->
+  <circle cx="38" cy="38" r="3.5" fill="#94A3B8"/>
+  <polygon points="32,64 46,48 54,58 60,51 68,61 68,64" fill="#94A3B8"/>
+</svg>

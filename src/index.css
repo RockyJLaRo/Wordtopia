@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Section 12 Pixel-Art Scaling & Rendering Requirement */
+.pixel-art {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-crisp-edges;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+@keyframes bounceSubtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce-subtle {
+  animation: bounceSubtle 2.5s ease-in-out infinite;
+}
+
+@media print {
+  header,
+  nav,
+  .no-print,
+  button:not(.print-keep) {
+    display: none !important;
+  }
+
+  body,
+  #root,
+  main {
+    background: white !important;
+    color: #1e293b !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: auto !important;
+  }
+
+  .worksheet-container {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .worksheet-question-row {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    border-bottom: 1px solid #cbd5e1 !important;
+    padding: 10px 0 !important;
+  }
+
+  .print-blank-line {
+    display: inline-block !important;
+    border-bottom: 2px solid #000 !important;
+    min-width: 180px !important;
+    height: 24px !important;
+  }
+}
