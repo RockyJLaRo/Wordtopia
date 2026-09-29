@@ -1,119 +1,165 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { Layers, Check, RotateCcw, Sparkles } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { getRandomWords, shuffleArray } from '../utils/gameUtils';
-import confetti from 'canvas-confetti';
-import { Link } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { getWordLinguisticProfile } from '../utils/linguisticEngine';
 import { playCorrectSound, playIncorrectSound, playWinSound } from '../utils/audio';
 import { haptic } from '../utils/haptics';
-import { useSettingsStore } from '../store/useSettingsStore';
 import { getGradeConfig } from '../utils/gradeConfig';
+import { VocabWord } from '../types';
+
+type MatchMode = 'standard' | 'context' | 'synonyms' | 'mixed';
+
+interface MatchCard {
+  id: string; // word id
+  text: string;
+  sublabel?: string;
+  type: 'word' | 'target';
+}
 
 export function WordMatch() {
   const { words, recordPractice } = useVocabStore();
   const { recordAnswer, addCoins, addStars, incrementGamesCompleted } = useProgressStore();
   const { soundEnabled, gradeLevel, reduceMotion } = useSettingsStore();
   const config = getGradeConfig(gradeLevel);
-  
+
+  const [matchMode, setMatchMode] = useState<MatchMode>('standard');
   const [gameState, setGameState] = useState<'playing' | 'finished'>('playing');
-  const [wordCards, setWordCards] = useState<any[]>([]);
-  const [defCards, setDefCards] = useState<any[]>([]);
-  
+  const [wordCards, setWordCards] = useState<MatchCard[]>([]);
+  const [targetCards, setTargetCards] = useState<MatchCard[]>([]);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
-  const [selectedDef, setSelectedDef] = useState<string | null>(null);
+  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [matchedPairs, setMatchedPairs] = useState<Set<string>>(new Set());
-  const [wrongPair, setWrongPair] = useState<{w: string, d: string} | null>(null);
+  const [wrongPair, setWrongPair] = useState<{ w: string; t: string } | null>(null);
+
   const wrongTimerRef = useRef<NodeJS.Timeout | null>(null);
   const finishTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [targetPairsCount, setTargetPairsCount] = useState(config.matchPairs);
-
-  const initGame = () => {
-    if (words.length < 2) return;
-    const maxTarget = config.matchPairs || 4;
-    const pool = shuffleArray(words);
-    const seenWords = new Set<string>();
-    const seenDefs = new Set<string>();
-    const selected: typeof words = [];
-
-    for (const w of pool) {
-      const nw = (w.word || '').trim().toLowerCase();
-      const nd = (w.definition || '').trim().toLowerCase();
-      if (!nw || !nd) continue;
-      if (!seenWords.has(nw) && !seenDefs.has(nd)) {
-        seenWords.add(nw);
-        seenDefs.add(nd);
-        selected.push(w);
-        if (selected.length >= maxTarget) break;
-      }
-    }
-
-    const finalSelected = selected.length >= 2 ? selected : getRandomWords(words, Math.min(words.length, maxTarget));
-    setTargetPairsCount(finalSelected.length);
-    setWordCards(shuffleArray([...finalSelected]));
-    setDefCards(shuffleArray([...finalSelected]));
-    setMatchedPairs(new Set());
-    setSelectedWord(null);
-    setSelectedDef(null);
-    setWrongPair(null);
-    setGameState('playing');
-  };
+  const PAIR_COUNT = Math.min(words.length, config.matchPairs || 4);
 
   useEffect(() => {
-    if (words.length >= 2 && wordCards.length === 0) {
+    if (words.length >= 2) {
       initGame();
     }
     return () => {
       if (wrongTimerRef.current) clearTimeout(wrongTimerRef.current);
       if (finishTimerRef.current) clearTimeout(finishTimerRef.current);
     };
-  }, [words.length, wordCards.length]);
+  }, [words.length, matchMode]);
+
+  const initGame = () => {
+    if (words.length < 2) return;
+
+    const pool = shuffleArray(words);
+    const selected: VocabWord[] = [];
+    const seenWords = new Set<string>();
+
+    for (const w of pool) {
+      const nw = (w.word || '').trim().toLowerCase();
+      if (!seenWords.has(nw)) {
+        seenWords.add(nw);
+        selected.push(w);
+        if (selected.length >= PAIR_COUNT) break;
+      }
+    }
+
+    const wordsSlice = selected.length >= 2 ? selected : getRandomWords(words, Math.min(words.length, PAIR_COUNT));
+
+    const leftCol: MatchCard[] = wordsSlice.map((w) => ({
+      id: w.id,
+      text: w.word,
+      type: 'word',
+    }));
+
+    const rightCol: MatchCard[] = wordsSlice.map((w, idx) => {
+      const profile = getWordLinguisticProfile(w);
+      let text = w.definition;
+      let sublabel = 'Definition';
+
+      if (matchMode === 'context') {
+        text = profile.clozeSentence.replace('_____', '_____');
+        sublabel = 'In-Context Sentence';
+      } else if (matchMode === 'synonyms') {
+        text = profile.synonyms[0] || w.definition;
+        sublabel = 'Synonym';
+      } else if (matchMode === 'mixed') {
+        if (idx % 2 === 0) {
+          text = profile.clozeSentence;
+          sublabel = 'Context';
+        } else {
+          text = w.definition;
+          sublabel = 'Meaning';
+        }
+      }
+
+      return {
+        id: w.id,
+        text,
+        sublabel,
+        type: 'target',
+      };
+    });
+
+    setWordCards(shuffleArray(leftCol));
+    setTargetCards(shuffleArray(rightCol));
+    setMatchedPairs(new Set());
+    setSelectedWord(null);
+    setSelectedTarget(null);
+    setWrongPair(null);
+    setGameState('playing');
+  };
 
   useEffect(() => {
-    if (selectedWord && selectedDef) {
-      if (selectedWord === selectedDef) {
-        // Match!
+    if (selectedWord && selectedTarget) {
+      if (selectedWord === selectedTarget) {
+        // Correct Match
         playCorrectSound(soundEnabled);
         haptic.success();
-        setMatchedPairs(prev => {
+        recordPractice(selectedWord, true, matchMode === 'context' ? 'context' : 'definition');
+        recordAnswer(true);
+
+        setMatchedPairs((prev) => {
           const next = new Set(prev).add(selectedWord);
-          if (next.size >= targetPairsCount && targetPairsCount > 0) {
+          if (next.size >= wordCards.length && wordCards.length > 0) {
             if (finishTimerRef.current) clearTimeout(finishTimerRef.current);
             finishTimerRef.current = setTimeout(() => {
               setGameState('finished');
               incrementGamesCompleted();
-              addCoins(50);
+              addCoins(50, 'Completed Word Match');
               addStars(2);
               playWinSound(soundEnabled);
               haptic.win();
               if (!reduceMotion) {
-                confetti({ particleCount: 200, spread: 100 });
+                confetti({ particleCount: 160, spread: 80 });
               }
             }, 500);
           }
           return next;
         });
-        recordPractice(selectedWord, true);
-        recordAnswer(true);
+
         setSelectedWord(null);
-        setSelectedDef(null);
+        setSelectedTarget(null);
       } else {
-        // Wrong match
+        // Wrong Match
         playIncorrectSound(soundEnabled);
         haptic.error();
-        setWrongPair({ w: selectedWord, d: selectedDef });
+        setWrongPair({ w: selectedWord, t: selectedTarget });
         recordPractice(selectedWord, false);
         recordAnswer(false);
+
         if (wrongTimerRef.current) clearTimeout(wrongTimerRef.current);
         wrongTimerRef.current = setTimeout(() => {
           setWrongPair(null);
           setSelectedWord(null);
-          setSelectedDef(null);
+          setSelectedTarget(null);
         }, 800);
       }
     }
-  }, [selectedWord, selectedDef, targetPairsCount]);
+  }, [selectedWord, selectedTarget, wordCards.length]);
 
   if (words.length < 2) {
     return (
@@ -122,7 +168,7 @@ export function WordMatch() {
           <div className="text-4xl mb-3">🧩</div>
           <h2 className="text-2xl font-black text-slate-800 mb-2">Need More Words!</h2>
           <p className="text-sm text-slate-600 mb-6 font-bold">
-            Connect the Blocks requires at least 2 vocabulary words to play.
+            Word Match requires at least 2 vocabulary words to play.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
@@ -145,24 +191,34 @@ export function WordMatch() {
 
   if (gameState === 'finished') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 sm:gap-6 p-4">
-        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border-4 sm:border-8 border-indigo-300 text-center max-w-md w-full">
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-800 mb-2">Perfect Match!</h2>
-          <div className="flex flex-col gap-3 mt-6 sm:mt-8">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-4 max-w-lg mx-auto">
+        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border-4 sm:border-8 border-indigo-300 text-center w-full">
+          <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 mx-auto mb-4">
+            <Layers size={36} />
+          </div>
+          <h2 className="text-3xl font-black text-slate-800 mb-2">Perfect Match!</h2>
+          <p className="text-slate-600 text-sm font-bold mb-6">
+            All vocabulary pairs were connected with precision!
+          </p>
+          <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4 mb-6">
+            <span className="text-xs uppercase tracking-wider font-black text-indigo-700 block mb-1">
+              Match Reward
+            </span>
+            <span className="text-2xl font-black text-indigo-600">+50 Coins & 2 Stars ⭐</span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
-              onClick={() => {
-                haptic.medium();
-                initGame();
-              }}
-              className="bg-indigo-500 border-b-4 sm:border-b-8 border-indigo-700 text-white font-black p-3.5 sm:p-4 rounded-xl active:border-b-0 active:translate-y-1 sm:active:translate-y-2 transition-all text-sm sm:text-base"
+              onClick={initGame}
+              className="flex-1 py-3 px-4 bg-indigo-500 hover:bg-indigo-600 text-white font-black rounded-xl text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              Play Again
+              <RotateCcw size={18} /> Play Again
             </button>
             <Link
               to="/games"
-              className="bg-slate-200 border-b-4 sm:border-b-8 border-slate-300 text-slate-600 font-black p-3.5 sm:p-4 rounded-xl active:border-b-0 active:translate-y-1 sm:active:translate-y-2 transition-all block text-sm sm:text-base text-center"
+              className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-sm transition-all active:scale-95 text-center"
             >
-              Back to Games
+              All Games
             </Link>
           </div>
         </div>
@@ -171,87 +227,108 @@ export function WordMatch() {
   }
 
   return (
-    <div className="flex-1 flex flex-col p-2.5 sm:p-4 w-full max-w-4xl mx-auto h-full">
-      <div className="text-center mb-3 sm:mb-4">
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight">
-          Connect the Blocks
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 font-bold">
-          Tap a word, then tap its meaning!
-        </p>
-      </div>
-
-      <div className="w-full flex-1 flex flex-col gap-2.5 sm:gap-3.5 justify-center max-w-4xl mx-auto">
-        {/* Column Headers */}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 w-full text-center px-1">
-          <div className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-500 flex items-center justify-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Word
+    <div className="flex-1 flex flex-col items-center py-4 px-2 max-w-3xl mx-auto w-full">
+      {/* Header Info */}
+      <div className="w-full flex items-center justify-between mb-3 bg-white/90 p-3 sm:p-4 rounded-2xl border-2 sm:border-4 border-slate-200 shadow-sm flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+            <Layers size={20} />
           </div>
-          <div className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-500 flex items-center justify-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Definition
+          <div>
+            <h1 className="font-black text-sm sm:text-base text-slate-800">Word Match</h1>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-500">
+              Matched {matchedPairs.size} of {wordCards.length}
+            </span>
           </div>
         </div>
 
-        {/* Aligned Rows */}
-        {wordCards.map((w, index) => {
-          const d = defCards[index];
-          const isWordMatched = matchedPairs.has(w.id);
-          const isWordSelected = selectedWord === w.id;
-          const isWordWrong = wrongPair?.w === w.id;
+        {/* Mode Selector Tabs */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+          {(['standard', 'context', 'synonyms', 'mixed'] as MatchMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setMatchMode(mode)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all capitalize ${
+                matchMode === mode
+                  ? 'bg-white text-indigo-700 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          let wordClasses =
-            'bg-white border-b-4 sm:border-b-8 border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer';
-          if (isWordMatched)
-            wordClasses =
-              'bg-emerald-100 border-emerald-300 text-emerald-700 opacity-50 scale-95 border-b-2 sm:border-b-4 pointer-events-none';
-          else if (isWordWrong)
-            wordClasses = 'bg-rose-100 border-rose-400 text-rose-700 animate-pulse';
-          else if (isWordSelected)
-            wordClasses =
-              'bg-indigo-100 border-indigo-500 border-b-2 sm:border-b-4 translate-y-0.5 sm:translate-y-1 text-indigo-800 ring-2 sm:ring-4 ring-indigo-300';
+      {/* Main Matching Grid */}
+      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Left: Vocabulary Words */}
+        <div className="flex flex-col gap-2.5">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
+            Words
+          </span>
+          {wordCards.map((card) => {
+            const isMatched = matchedPairs.has(card.id);
+            const isSelected = selectedWord === card.id;
+            const isWrong = wrongPair?.w === card.id;
 
-          const isDefMatched = d ? matchedPairs.has(d.id) : false;
-          const isDefSelected = d ? selectedDef === d.id : false;
-          const isDefWrong = d ? wrongPair?.d === d.id : false;
-
-          let defClasses =
-            'bg-white border-b-4 sm:border-b-8 border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer';
-          if (isDefMatched)
-            defClasses =
-              'bg-emerald-100 border-emerald-300 text-emerald-700 opacity-50 scale-95 border-b-2 sm:border-b-4 pointer-events-none';
-          else if (isDefWrong)
-            defClasses = 'bg-rose-100 border-rose-400 text-rose-700 animate-pulse';
-          else if (isDefSelected)
-            defClasses =
-              'bg-indigo-100 border-indigo-500 border-b-2 sm:border-b-4 translate-y-0.5 sm:translate-y-1 text-indigo-800 ring-2 sm:ring-4 ring-indigo-300';
-
-          return (
-            <div key={`pair-row-${w.id}-${d?.id || index}`} className="grid grid-cols-2 gap-2.5 sm:gap-4 w-full items-stretch">
-              {/* Word Box */}
+            return (
               <button
-                type="button"
-                key={`w-${w.id}`}
-                onClick={() => !wrongPair && !isWordMatched && setSelectedWord(w.id)}
-                className={`w-full min-h-[68px] sm:min-h-[82px] p-3 sm:p-4 rounded-xl sm:rounded-2xl font-black text-sm sm:text-base md:text-lg transition-all border-x-2 sm:border-x-4 border-t-2 sm:border-t-4 flex justify-between items-center break-words text-left shadow-xs ${wordClasses}`}
+                key={card.id}
+                disabled={isMatched}
+                onClick={() => setSelectedWord(isSelected ? null : card.id)}
+                className={`p-4 rounded-2xl font-black text-base sm:text-lg border-2 sm:border-3 text-left transition-all active:scale-[0.98] flex items-center justify-between ${
+                  isMatched
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800 opacity-60'
+                    : isWrong
+                    ? 'bg-rose-100 border-rose-400 text-rose-900 animate-shake'
+                    : isSelected
+                    ? 'bg-indigo-100 border-indigo-500 text-indigo-900 ring-2 ring-indigo-200'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 shadow-2xs'
+                }`}
               >
-                <span className="break-words line-clamp-2 mr-1">{w.word}</span>
-                {isWordMatched && <Check size={18} className="shrink-0 text-emerald-600 sm:w-5 sm:h-5 ml-1" />}
+                <span>{card.text}</span>
+                {isMatched && <Check size={18} className="text-emerald-600" />}
               </button>
+            );
+          })}
+        </div>
 
-              {/* Definition Box */}
-              {d && (
-                <button
-                  type="button"
-                  key={`d-${d.id}`}
-                  onClick={() => !wrongPair && !isDefMatched && setSelectedDef(d.id)}
-                  className={`w-full min-h-[68px] sm:min-h-[82px] p-3 sm:p-4 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm md:text-base transition-all border-x-2 sm:border-x-4 border-t-2 sm:border-t-4 text-left leading-tight sm:leading-snug break-words flex items-center shadow-xs ${defClasses}`}
-                >
-                  <span className="line-clamp-3">{d.definition}</span>
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {/* Right: Targets (Definition / Context / Synonym) */}
+        <div className="flex flex-col gap-2.5">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
+            Matches ({matchMode})
+          </span>
+          {targetCards.map((card) => {
+            const isMatched = matchedPairs.has(card.id);
+            const isSelected = selectedTarget === card.id;
+            const isWrong = wrongPair?.t === card.id;
+
+            return (
+              <button
+                key={card.id}
+                disabled={isMatched}
+                onClick={() => setSelectedTarget(isSelected ? null : card.id)}
+                className={`p-3.5 sm:p-4 rounded-2xl font-bold text-xs sm:text-sm border-2 sm:border-3 text-left transition-all active:scale-[0.98] flex flex-col gap-1 leading-snug ${
+                  isMatched
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800 opacity-60'
+                    : isWrong
+                    ? 'bg-rose-100 border-rose-400 text-rose-900 animate-shake'
+                    : isSelected
+                    ? 'bg-indigo-100 border-indigo-500 text-indigo-900 ring-2 ring-indigo-200'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
+                }`}
+              >
+                {card.sublabel && (
+                  <span className="text-[10px] uppercase font-black tracking-wider text-indigo-500">
+                    {card.sublabel}
+                  </span>
+                )}
+                <span>"{card.text}"</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

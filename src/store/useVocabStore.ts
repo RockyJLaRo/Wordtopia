@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { VocabWord, MasteryLevel } from '../types';
+import { VocabWord, MasteryLevel, SkillDimension } from '../types';
 
 export interface VocabState {
   allWords: VocabWord[];
@@ -21,7 +21,7 @@ export interface VocabState {
   clearAll: (lessonOnly?: boolean) => void;
   resetMastery: (lessonOnly?: boolean) => void;
   importWords: (text: string, replaceExisting: boolean, defaultLesson?: string) => void;
-  recordPractice: (id: string, isCorrect: boolean) => void;
+  recordPractice: (id: string, isCorrect: boolean, dimension?: SkillDimension, confusedWithWord?: string) => void;
   toggleNeedsPractice: (id: string) => void;
 }
 
@@ -102,12 +102,42 @@ export const parseVocabTextWithLessons = (
   return parsed;
 };
 
-const calculateMastery = (correct: number, incorrect: number, practiced: number): MasteryLevel => {
+const calculateMastery = (
+  correct: number,
+  incorrect: number,
+  practiced: number,
+  streak: number,
+  currentLevel: MasteryLevel = 'New',
+  dimensionScores?: Record<string, number>
+): MasteryLevel => {
   if (practiced === 0) return 'New';
+  if (practiced === 1 && correct === 1) return 'Introduced';
   const accuracy = correct / practiced;
-  if (practiced >= 5 && accuracy >= 0.9) return 'Mastered';
-  if (practiced >= 3 && accuracy >= 0.8) return 'Strong';
-  if (practiced >= 1 && accuracy < 0.6) return 'Practicing';
+
+  // If a student had previously achieved Strong/Mastered but broke streak with multiple errors
+  if ((currentLevel === 'Mastered' || currentLevel === 'Strong') && streak === 0 && incorrect >= 2) {
+    return 'Needs Review';
+  }
+
+  // Multi-dimensional check if dimension scores available
+  if (dimensionScores) {
+    const avgDim = (
+      (dimensionScores.recognition || 0) +
+      (dimensionScores.definition || 0) +
+      (dimensionScores.context || 0) +
+      (dimensionScores.spelling || 0) +
+      (dimensionScores.recall || 0)
+    ) / 5;
+    if (practiced >= 6 && accuracy >= 0.88 && streak >= 4 && avgDim >= 75) return 'Mastered';
+    if (practiced >= 4 && accuracy >= 0.78 && streak >= 2) return 'Strong';
+    if (practiced >= 2 && accuracy < 0.6) return 'Needs Review';
+    if (practiced >= 1) return 'Learning';
+  }
+
+  if (practiced >= 5 && accuracy >= 0.9 && streak >= 3) return 'Mastered';
+  if (practiced >= 3 && accuracy >= 0.75) return 'Strong';
+  if (practiced >= 1 && accuracy < 0.6) return 'Needs Review';
+  if (practiced >= 2) return 'Practicing';
   return 'Learning';
 };
 
@@ -389,7 +419,7 @@ export const useVocabStore = create<VocabState>()(
           };
         }),
 
-      recordPractice: (id, isCorrect) =>
+      recordPractice: (id, isCorrect, dimension = 'recognition', confusedWithWord) =>
         set((state) => {
           const updatedAll = state.allWords.map((w) => {
             if (w.id !== id) return w;
@@ -397,15 +427,55 @@ export const useVocabStore = create<VocabState>()(
             const incorrectCount = w.incorrectCount + (isCorrect ? 0 : 1);
             const practicedCount = w.practicedCount + 1;
             const accuracy = correctCount / practicedCount;
-            const masteryLevel = calculateMastery(correctCount, incorrectCount, practicedCount);
+            const newStreak = isCorrect ? (w.streak || 0) + 1 : 0;
+
+            // Update dimension scores
+            const currentDimensions = w.dimensionScores || {
+              recognition: 50,
+              definition: 50,
+              context: 50,
+              spelling: 50,
+              recall: 50,
+            };
+            const dimDelta = isCorrect ? 15 : -20;
+            const updatedDimScore = Math.max(0, Math.min(100, (currentDimensions[dimension] || 50) + dimDelta));
+            const newDimensions = {
+              ...currentDimensions,
+              [dimension]: updatedDimScore,
+            };
+
+            // Spaced Repetition Next Review (Interval in days expands with streak: 1 -> 3 -> 7 -> 14)
+            const intervalDays = isCorrect ? Math.min(21, Math.pow(2, Math.min(newStreak, 4))) : 1;
+            const nextReviewDate = Date.now() + intervalDays * 24 * 60 * 60 * 1000;
+
+            // Track confusion words
+            const confusionWords = [...(w.confusionWords || [])];
+            if (!isCorrect && confusedWithWord && !confusionWords.includes(confusedWithWord)) {
+              confusionWords.push(confusedWithWord);
+            }
+
+            const masteryLevel = calculateMastery(
+              correctCount,
+              incorrectCount,
+              practicedCount,
+              newStreak,
+              w.masteryLevel,
+              newDimensions
+            );
+
             return {
               ...w,
               correctCount,
               incorrectCount,
               practicedCount,
               accuracy,
+              streak: newStreak,
               masteryLevel,
               lastPracticed: Date.now(),
+              nextReviewDate,
+              dimensionScores: newDimensions,
+              confusionWords: confusionWords.slice(-5),
+              needsPractice: masteryLevel === 'Needs Review' || masteryLevel === 'Learning' ? true : w.needsPractice,
             };
           });
           const words = getFilteredWords(updatedAll, state.selectedLesson);

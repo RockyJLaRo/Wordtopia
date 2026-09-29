@@ -16,6 +16,11 @@ import { WordDetective } from './games/WordDetective';
 import { VocabularyBuilder } from './games/VocabularyBuilder';
 import { VocabularyAdventure } from './games/VocabularyAdventure';
 import { SpeedChallenge } from './games/SpeedChallenge';
+import { SentenceForge } from './games/SentenceForge';
+import { WordSortLab } from './games/WordSortLab';
+import { ContextQuest } from './games/ContextQuest';
+import { BossBattle } from './games/BossBattle';
+import { SpellingQuest } from './games/SpellingQuest';
 import { PracticeTest } from './pages/PracticeTest';
 import { useVocabStore } from './store/useVocabStore';
 import { useEffect } from 'react';
@@ -89,6 +94,11 @@ export default function App() {
           <Route path="game/vocab-builder" element={<VocabularyBuilder />} />
           <Route path="game/vocab-adventure" element={<VocabularyAdventure />} />
           <Route path="game/speed-challenge" element={<SpeedChallenge />} />
+          <Route path="game/sentence-forge" element={<SentenceForge />} />
+          <Route path="game/word-sort-lab" element={<WordSortLab />} />
+          <Route path="game/context-quest" element={<ContextQuest />} />
+          <Route path="game/boss-battle" element={<BossBattle />} />
+          <Route path="game/spelling-quest" element={<SpellingQuest />} />
         </Route>
       </Routes>
     </BrowserRouter>

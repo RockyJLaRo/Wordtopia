@@ -8,6 +8,7 @@ import { playCorrectSound, playIncorrectSound, playWinSound } from '../utils/aud
 import { haptic } from '../utils/haptics';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { getGradeConfig } from '../utils/gradeConfig';
+import { getWordLinguisticProfile } from '../utils/linguisticEngine';
 import { Lightbulb, Timer } from 'lucide-react';
 
 export function DefinitionDash() {
@@ -146,15 +147,16 @@ export function DefinitionDash() {
       setScore(s => s + 100 + (config.hasTimer ? timeLeft : 0));
       addCoins(10);
       addStars(1);
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = setTimeout(() => {
+        advanceToNextQuestion();
+      }, 1500);
     } else {
       playIncorrectSound(soundEnabled);
       haptic.error();
+      // On error, let student read the explanation rather than rushing past!
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
     }
-
-    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    advanceTimerRef.current = setTimeout(() => {
-      advanceToNextQuestion();
-    }, 2000);
   };
 
   if (words.length < 2) {
@@ -310,37 +312,44 @@ export function DefinitionDash() {
         })}
       </div>
 
-      {/* Feedback Message & Tap to Advance */}
-      <div
-        className={`mt-4 sm:mt-6 flex flex-col items-center justify-center gap-2 transition-opacity ${
-          gameState === 'feedback' ? 'opacity-100' : 'opacity-0'
-        }`}
-      >
-        <div className="flex items-center gap-2">
+      {/* Feedback Message & Diagnostic Card */}
+      {gameState === 'feedback' && (
+        <div className="mt-4 sm:mt-6 w-full flex flex-col items-center justify-center gap-3">
           {isCorrect ? (
-            <span className="bg-emerald-500 text-white font-black px-4 sm:px-6 py-1.5 sm:py-2 rounded-full text-base sm:text-xl animate-bounce">
-              + Awesome!
-            </span>
+            <div className="flex flex-col items-center gap-2">
+              <span className="bg-emerald-500 text-white font-black px-6 py-2 rounded-full text-base sm:text-xl shadow-md animate-bounce">
+                ✨ Correct! +100 PTS
+              </span>
+              <span className="text-xs font-bold text-slate-400">Advancing to next question...</span>
+            </div>
           ) : (
-            <span className="bg-rose-500 text-white font-black px-4 sm:px-6 py-1.5 sm:py-2 rounded-full text-sm sm:text-xl">
-              Let's try again next time!
-            </span>
+            <div className="w-full bg-amber-50 border-3 border-amber-300 p-4 sm:p-5 rounded-3xl text-left shadow-md">
+              <div className="flex items-center gap-2 font-black text-amber-900 text-sm sm:text-base mb-1">
+                <span>💡 Learning Moment</span>
+              </div>
+              <p className="text-xs sm:text-sm font-bold text-amber-950 mb-2">
+                <span className="font-black text-amber-800">"{currentWord?.word}"</span> means:{' '}
+                {currentWord?.definition}
+              </p>
+              {currentWord && (
+                <p className="text-xs text-amber-800 italic bg-white/70 p-2.5 rounded-xl border border-amber-200 mb-3">
+                  Example: "{getWordLinguisticProfile(currentWord).exampleSentence}"
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  advanceToNextQuestion();
+                }}
+                className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 text-center cursor-pointer"
+              >
+                I understand, Continue to Next Question ➔
+              </button>
+            </div>
           )}
         </div>
-        {gameState === 'feedback' && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              advanceToNextQuestion();
-            }}
-            className="mt-2 px-5 py-2.5 bg-sky-500 hover:bg-sky-400 text-white font-black rounded-xl text-xs sm:text-sm shadow-md animate-pulse flex items-center gap-2 cursor-pointer transition-transform hover:scale-105 active:scale-95"
-          >
-            <span>Next Question ➔</span>
-            <span className="text-[10px] opacity-90 font-normal">(Tap anywhere to advance)</span>
-          </button>
-        )}
-      </div>
+      )}
     </div>
   );
 }

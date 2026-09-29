@@ -51,12 +51,14 @@ export function SpeedChallenge() {
   const TOTAL_QUESTIONS = 10;
   const BASE_POINTS = 100;
 
+  const [isZenMode, setIsZenMode] = useState(false);
   const [gameState, setGameState] = useState<'playing' | 'feedback' | 'finished'>('playing');
   const gameStateRef = useRef<'playing' | 'feedback' | 'finished'>('playing');
   gameStateRef.current = gameState;
   const [questionCount, setQuestionCount] = useState(0);
   
   const [currentWord, setCurrentWord] = useState<any>(null);
+  const [promptMode, setPromptMode] = useState<'wordToDef' | 'defToWord'>('wordToDef');
   const [options, setOptions] = useState<any[]>([]);
   
   const [score, setScore] = useState(0);
@@ -158,6 +160,8 @@ export function SpeedChallenge() {
     const distractors = getDistractors(words, nextWord, numOptions);
     const allOptions = shuffleArray([...distractors, nextWord]);
     
+    const chosenPromptMode = Math.random() > 0.5 ? 'defToWord' : 'wordToDef';
+    setPromptMode(chosenPromptMode);
     setCurrentWord(nextWord);
     setOptions(allOptions);
     setGameState('playing');
@@ -165,25 +169,27 @@ export function SpeedChallenge() {
     setStartTime(performance.now());
     setTimeRemainingPercent(100);
 
-    // Timeout fallback that triggers unconditionally when timeLimitMs expires
-    questionTimeoutRef.current = setTimeout(() => {
-      handleTimeout();
-    }, timeLimitMs);
-    
-    // Smooth progress bar animation
-    if (!reduceMotion) {
-      const start = performance.now();
-      const animate = (now: number) => {
-        const elapsed = now - start;
-        const remaining = Math.max(0, 100 - (elapsed / timeLimitMs) * 100);
-        setTimeRemainingPercent(remaining);
-        if (remaining <= 0) {
-          handleTimeout();
-        } else if (gameState === 'playing') {
-          animationRef.current = requestAnimationFrame(animate);
-        }
-      };
-      animationRef.current = requestAnimationFrame(animate);
+    // Timeout fallback only when not in Zen Mode
+    if (!isZenMode) {
+      questionTimeoutRef.current = setTimeout(() => {
+        handleTimeout();
+      }, timeLimitMs);
+      
+      // Smooth progress bar animation
+      if (!reduceMotion) {
+        const start = performance.now();
+        const animate = (now: number) => {
+          const elapsed = now - start;
+          const remaining = Math.max(0, 100 - (elapsed / timeLimitMs) * 100);
+          setTimeRemainingPercent(remaining);
+          if (remaining <= 0) {
+            handleTimeout();
+          } else if (gameState === 'playing') {
+            animationRef.current = requestAnimationFrame(animate);
+          }
+        };
+        animationRef.current = requestAnimationFrame(animate);
+      }
     }
   };
 
@@ -219,7 +225,7 @@ export function SpeedChallenge() {
     const timeMs = endTime - startTime;
     const isCorrect = selectedWord.id === currentWord.id;
 
-    recordPractice(currentWord.id, isCorrect);
+    recordPractice(currentWord.id, isCorrect, 'recognition');
     recordAnswer(isCorrect);
 
     if (isCorrect) {
@@ -237,10 +243,10 @@ export function SpeedChallenge() {
       setFastestAnswer(prev => Math.min(prev, timeMs));
       setTotalResponseTime(prev => prev + timeMs);
 
-      // Calculate speed bonus
-      const timeRatio = Math.max(0, timeLimitMs - timeMs) / timeLimitMs;
-      const speedBonus = Math.floor(timeRatio * maxBonus);
-      const streakBonus = newStreak > 2 ? (newStreak * 10) : 0;
+      // Calculate speed & streak bonus
+      const timeRatio = isZenMode ? 1 : Math.max(0, timeLimitMs - timeMs) / timeLimitMs;
+      const speedBonus = isZenMode ? 20 : Math.floor(timeRatio * maxBonus);
+      const streakBonus = newStreak > 2 ? (newStreak * 15) : 0;
       
       const totalPoints = BASE_POINTS + speedBonus + streakBonus;
       setScore(prev => prev + totalPoints);
@@ -392,8 +398,21 @@ export function SpeedChallenge() {
           </span>
         </div>
 
-        <div className="text-center font-bold text-xs sm:text-sm text-slate-400">
-          Question {Math.min(questionCount + 1, TOTAL_QUESTIONS)} of {TOTAL_QUESTIONS}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsZenMode((prev) => !prev)}
+            className={`px-3 py-1 rounded-xl text-xs font-black transition-all ${
+              isZenMode
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                : 'bg-amber-100 text-amber-800 border border-amber-300'
+            }`}
+          >
+            {isZenMode ? '🧘 Zen Mode (Untimed)' : '⚡ Sprint Mode'}
+          </button>
+          <span className="font-bold text-xs sm:text-sm text-slate-400">
+            {Math.min(questionCount + 1, TOTAL_QUESTIONS)} / {TOTAL_QUESTIONS}
+          </span>
         </div>
 
         <div className="flex flex-col items-end">
@@ -410,18 +429,24 @@ export function SpeedChallenge() {
 
       {/* Main Game Area */}
       <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-10 border-2 sm:border-4 border-slate-200 shadow-xl w-full relative">
-        {/* Speed Bar */}
-        <div className="absolute top-0 left-0 w-full h-2 sm:h-2.5 bg-slate-100 rounded-t-2xl sm:rounded-t-3xl overflow-hidden">
-          <div
-            className="h-full bg-amber-400 transition-all duration-100 ease-linear"
-            style={{ width: `${timeRemainingPercent}%` }}
-          />
-        </div>
+        {/* Speed Bar (only in Sprint Mode) */}
+        {!isZenMode && (
+          <div className="absolute top-0 left-0 w-full h-2 sm:h-2.5 bg-slate-100 rounded-t-2xl sm:rounded-t-3xl overflow-hidden">
+            <div
+              className="h-full bg-amber-400 transition-all duration-100 ease-linear"
+              style={{ width: `${timeRemainingPercent}%` }}
+            />
+          </div>
+        )}
 
         <div className="text-center mt-2 sm:mt-4 mb-4 sm:mb-8">
-          <h2 className="text-sm sm:text-xl font-bold text-slate-400 mb-1">What does this mean?</h2>
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-slate-800 tracking-tight break-words">
-            {currentWord?.word}
+          <h2 className="text-sm sm:text-xl font-bold text-slate-400 mb-1">
+            {promptMode === 'wordToDef'
+              ? 'What does this word mean?'
+              : 'Which word matches this definition?'}
+          </h2>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-800 tracking-tight break-words">
+            {promptMode === 'wordToDef' ? currentWord?.word : `"${currentWord?.definition}"`}
           </h1>
         </div>
 
@@ -442,7 +467,7 @@ export function SpeedChallenge() {
                 }
               `}
             >
-              {option.definition}
+              {promptMode === 'wordToDef' ? option.definition : option.word}
             </button>
           ))}
         </div>

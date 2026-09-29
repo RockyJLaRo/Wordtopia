@@ -14,7 +14,24 @@ export type GradeLevel =
   | '12th Grade'
   | 'Custom';
 
-export type MasteryLevel = 'New' | 'Learning' | 'Practicing' | 'Strong' | 'Mastered';
+export type MasteryLevel =
+  | 'New'
+  | 'Introduced'
+  | 'Learning'
+  | 'Practicing'
+  | 'Strong'
+  | 'Mastered'
+  | 'Needs Review';
+
+export type SkillDimension = 'recognition' | 'definition' | 'context' | 'spelling' | 'recall';
+
+export interface DimensionScores {
+  recognition: number; // percentage 0 - 100
+  definition: number;
+  context: number;
+  spelling: number;
+  recall: number;
+}
 
 export interface VocabWord {
   id: string;
@@ -28,6 +45,10 @@ export interface VocabWord {
   masteryLevel: MasteryLevel;
   lastPracticed?: number;
   needsPractice: boolean;
+  streak?: number;
+  dimensionScores?: DimensionScores;
+  confusionWords?: string[];
+  nextReviewDate?: number;
 }
 
 export interface VocabLessonInfo {

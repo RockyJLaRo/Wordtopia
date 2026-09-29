@@ -74,6 +74,7 @@ export function PracticeTest() {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printIncludeAnswers, setPrintIncludeAnswers] = useState(false);
   const [printIncludeWordBank, setPrintIncludeWordBank] = useState(true);
+  const [previewFitPage, setPreviewFitPage] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -273,139 +274,167 @@ export function PracticeTest() {
 
       const pageWidth = 612;
       const pageHeight = 792;
-      const margin = 40;
+      const margin = 36;
       const contentWidth = pageWidth - margin * 2;
+      const count = shuffledQuestions.length;
+
+      // Dynamic scaling parameters based on question count
+      let titleSize = 16;
+      let headerGap = 16;
+      let studentLineY = 74;
+      let baseFontSize = 10;
+      let defFontSize = 9.5;
+      let qHeight = 24;
+
+      if (count >= 16) {
+        titleSize = 13;
+        headerGap = 12;
+        studentLineY = 62;
+        baseFontSize = 8;
+        defFontSize = 7.5;
+        qHeight = 15;
+      } else if (count >= 12) {
+        titleSize = 14;
+        headerGap = 14;
+        studentLineY = 68;
+        baseFontSize = 8.5;
+        defFontSize = 8;
+        qHeight = 18;
+      } else if (count >= 8) {
+        titleSize = 15;
+        baseFontSize = 9;
+        defFontSize = 8.5;
+        qHeight = 21;
+      }
 
       // Header Title
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
+      doc.setFontSize(titleSize);
       doc.setTextColor(30, 41, 59);
-      doc.text(testTitle, pageWidth / 2, 45, { align: 'center' });
+      doc.text(testTitle, pageWidth / 2, 38, { align: 'center' });
 
       // Subtitle
-      doc.setFontSize(9.5);
+      doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
-      doc.text('Wordtopia • Vocabulary Assessment Worksheet', pageWidth / 2, 60, { align: 'center' });
+      doc.text('Wordtopia • Single-Page Vocabulary Assessment', pageWidth / 2, 50, { align: 'center' });
 
       // Student info lines
       doc.setDrawColor(203, 213, 225);
       doc.setLineWidth(1);
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setTextColor(51, 65, 85);
 
-      let y = 85;
+      let y = studentLineY;
       doc.text('Name:', margin, y);
-      doc.line(margin + 35, y + 2, margin + 220, y + 2);
+      doc.line(margin + 35, y + 2, margin + 210, y + 2);
       if (studentName) {
         doc.setFont('helvetica', 'normal');
         doc.text(studentName, margin + 40, y);
       }
 
       doc.setFont('helvetica', 'bold');
-      doc.text('Date:', margin + 235, y);
-      doc.line(margin + 265, y + 2, margin + 370, y + 2);
+      doc.text('Date:', margin + 225, y);
+      doc.line(margin + 255, y + 2, margin + 360, y + 2);
 
-      doc.text('Score:', margin + 385, y);
-      doc.line(margin + 425, y + 2, margin + 485, y + 2);
-      doc.text(`/ ${shuffledQuestions.length}`, margin + 490, y);
+      doc.text('Score:', margin + 375, y);
+      doc.line(margin + 415, y + 2, margin + 475, y + 2);
+      doc.text(`/ ${count}`, margin + 480, y);
 
-      y += 22;
+      y += headerGap;
 
       // Word Bank box
       if (includeWordBank && wordBankList.length > 0) {
         const bankWords = wordBankList.join('   •   ');
-        const splitBank = doc.splitTextToSize(bankWords, contentWidth - 85);
-        const bankBoxHeight = Math.max(36, splitBank.length * 13 + 14);
+        const splitBank = doc.splitTextToSize(bankWords, contentWidth - 80);
+        const bankBoxHeight = Math.max(26, splitBank.length * (count > 14 ? 10 : 12) + 10);
 
         doc.setFillColor(248, 250, 252);
         doc.setDrawColor(203, 213, 225);
-        doc.roundedRect(margin, y, contentWidth, bankBoxHeight, 4, 4, 'FD');
+        doc.roundedRect(margin, y, contentWidth, bankBoxHeight, 3, 3, 'FD');
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
+        doc.setFontSize(8);
         doc.setTextColor(71, 85, 105);
-        doc.text('WORD BANK:', margin + 10, y + 14);
+        doc.text('WORD BANK:', margin + 8, y + (bankBoxHeight > 30 ? 12 : 16));
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9.5);
+        doc.setFontSize(count > 14 ? 8 : 8.5);
         doc.setTextColor(30, 41, 59);
-        doc.text(splitBank, margin + 80, y + 14);
+        doc.text(splitBank, margin + 78, y + 12);
 
-        y += bankBoxHeight + 10;
+        y += bankBoxHeight + (count > 14 ? 6 : 8);
       } else {
-        y += 10;
+        y += 6;
       }
 
       // Divider
       doc.setDrawColor(226, 232, 240);
-      doc.line(margin, y - 5, margin + contentWidth, y - 5);
+      doc.line(margin, y - 2, margin + contentWidth, y - 2);
 
       // Directions
       doc.setFont('helvetica', 'italic');
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
       doc.text(
         'Directions: Read each definition carefully. Write the correct vocabulary word on the blank line provided.',
         margin,
-        y + 6
+        y + 8
       );
 
-      y += 24;
+      y += count > 14 ? 16 : 20;
+
+      const blankLineWidth = count > 14 ? 115 : 135;
 
       shuffledQuestions.forEach((q, idx) => {
-        const defLines = doc.splitTextToSize(q.definition || '', contentWidth - 150);
-        const qHeight = Math.max(28, defLines.length * 12 + 12);
-
-        // If question exceeds current page, cleanly paginate
-        if (y + qHeight > pageHeight - 35) {
-          doc.addPage();
-          y = 50;
-        }
+        const defLines = doc.splitTextToSize(q.definition || '', contentWidth - blankLineWidth - 40);
+        const currentQHeight = Math.max(qHeight, defLines.length * (count > 14 ? 9 : 11) + 4);
 
         const qNum = `${idx + 1}.`;
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
+        doc.setFontSize(baseFontSize);
         doc.setTextColor(30, 41, 59);
         doc.text(qNum, margin, y);
 
         // Fill line
         doc.setDrawColor(100, 116, 139);
         doc.setLineWidth(1);
-        doc.line(margin + 18, y + 2, margin + 140, y + 2);
+        doc.line(margin + 16, y + 2, margin + 16 + blankLineWidth, y + 2);
 
         // If showing answers or student answer
         const ansText = includeAnswers ? q.word : (answers[q.id] || '');
         if (ansText) {
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(10);
+          doc.setFontSize(baseFontSize);
           doc.setTextColor(14, 116, 144);
-          doc.text(ansText, margin + 22, y);
+          doc.text(ansText, margin + 20, y);
         }
 
         // Definition prompt
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9.5);
+        doc.setFontSize(defFontSize);
         doc.setTextColor(51, 65, 85);
-        doc.text(defLines, margin + 150, y);
+        doc.text(defLines, margin + 24 + blankLineWidth, y);
 
-        y += qHeight;
+        y += currentQHeight;
       });
 
       // Footer
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setTextColor(148, 163, 184);
-      doc.text('Wordtopia • Single-Page Printable Assessment', pageWidth / 2, pageHeight - 15, { align: 'center' });
+      doc.text('Wordtopia • Single-Page Printable Assessment', pageWidth / 2, pageHeight - 12, { align: 'center' });
 
       // Save PDF
       const filename = `${testTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
       doc.save(filename);
+      setPrintStatus('PDF generated successfully!');
       haptic.success();
     } catch (err) {
       console.error('Failed to generate PDF:', err);
+      setPrintStatus('Error generating PDF. Please try again.');
     }
   };
 
@@ -897,6 +926,32 @@ export function PracticeTest() {
                   />
                   <span>Include Answers (Key)</span>
                 </label>
+
+                {/* View Scaling Toggle */}
+                <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFitPage(true)}
+                    className={`px-2 py-0.5 rounded-md transition-all ${
+                      previewFitPage
+                        ? 'bg-white text-sky-800 shadow-2xs font-black'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Fit Sheet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFitPage(false)}
+                    className={`px-2 py-0.5 rounded-md transition-all ${
+                      !previewFitPage
+                        ? 'bg-white text-sky-800 shadow-2xs font-black'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    100% Size
+                  </button>
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -921,37 +976,49 @@ export function PracticeTest() {
             </div>
 
             {/* Live Paper Document Preview */}
-            <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100 flex justify-center">
-              <div className="bg-white w-full max-w-xl p-6 sm:p-8 rounded-xl shadow-md border border-slate-300 font-serif text-slate-800 text-xs sm:text-sm">
-                <div className="text-center border-b-2 border-slate-800 pb-3 mb-4">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-200 flex justify-center items-start">
+              <div
+                style={{
+                  transform: previewFitPage ? 'scale(0.92)' : 'none',
+                  transformOrigin: 'top center',
+                }}
+                className={`bg-white w-full max-w-xl p-6 sm:p-8 rounded-xl shadow-xl border border-slate-300 font-serif text-slate-800 transition-all ${
+                  shuffledQuestions.length > 14
+                    ? 'text-[11px] leading-tight'
+                    : shuffledQuestions.length > 9
+                    ? 'text-xs leading-snug'
+                    : 'text-sm leading-normal'
+                }`}
+              >
+                <div className="text-center border-b-2 border-slate-800 pb-2.5 mb-3">
                   <h2 className="text-base sm:text-lg font-black tracking-tight">{testTitle}</h2>
                   <p className="text-[10px] text-slate-500 uppercase tracking-widest font-sans font-bold">
-                    Wordtopia Assessment
+                    Wordtopia Assessment • Single Page
                   </p>
                 </div>
 
-                <div className="flex justify-between items-center text-xs font-sans font-bold border-b border-slate-200 pb-2 mb-4 gap-2">
+                <div className="flex justify-between items-center text-xs font-sans font-bold border-b border-slate-200 pb-2 mb-3 gap-2">
                   <div>Name: <span className="underline decoration-slate-400 font-normal">{studentName || '______________________'}</span></div>
                   <div>Date: <span className="underline decoration-slate-400 font-normal">______________</span></div>
                   <div>Score: <span className="underline decoration-slate-400 font-normal">______ / {shuffledQuestions.length}</span></div>
                 </div>
 
                 {printIncludeWordBank && wordBankList.length > 0 && (
-                  <div className="bg-slate-50 border border-slate-300 rounded-lg p-2.5 mb-4 text-center font-sans text-xs">
+                  <div className="bg-slate-50 border border-slate-300 rounded-lg p-2 mb-3 text-center font-sans text-xs">
                     <span className="font-bold text-slate-600 mr-2">WORD BANK:</span>
                     <span className="text-slate-800 font-semibold">{wordBankList.join('   •   ')}</span>
                   </div>
                 )}
 
-                <p className="italic text-[11px] text-slate-500 mb-4 font-sans">
+                <p className="italic text-[10px] sm:text-[11px] text-slate-500 mb-3 font-sans">
                   Directions: Read each definition carefully. Write the correct vocabulary word on the blank line provided.
                 </p>
 
-                <div className="space-y-3 font-sans">
+                <div className={`font-sans ${shuffledQuestions.length > 14 ? 'space-y-1.5' : shuffledQuestions.length > 9 ? 'space-y-2.5' : 'space-y-3.5'}`}>
                   {shuffledQuestions.map((q, idx) => (
-                    <div key={q.id} className="flex items-baseline gap-2 text-xs">
-                      <span className="font-bold w-4">{idx + 1}.</span>
-                      <span className="inline-block border-b border-slate-800 min-w-[120px] text-sky-800 font-bold px-1 text-center">
+                    <div key={q.id} className="flex items-baseline gap-2">
+                      <span className="font-bold w-4 shrink-0">{idx + 1}.</span>
+                      <span className="inline-block border-b border-slate-800 min-w-[110px] sm:min-w-[130px] text-sky-800 font-bold px-1 text-center shrink-0">
                         {printIncludeAnswers ? q.word : (answers[q.id] || '\u00A0')}
                       </span>
                       <span className="text-slate-700 leading-snug">{q.definition}</span>
@@ -963,6 +1030,39 @@ export function PracticeTest() {
           </div>
         </div>
       )}
+
+      {/* DEDICATED PRINTABLE WORKSHEET (Active when Ctrl+P or window.print is triggered) */}
+      <div id="printable-worksheet" className="print-only font-serif text-black p-4">
+        <div className="text-center border-b-2 border-black pb-2 mb-3">
+          <h1 className="text-xl font-bold uppercase tracking-wide">{testTitle}</h1>
+          <p className="text-xs text-slate-700 uppercase font-sans font-bold">Wordtopia Assessment</p>
+        </div>
+        <div className="flex justify-between items-center text-xs font-sans font-bold border-b border-black pb-1.5 mb-3">
+          <div>Name: <span className="underline font-normal">{studentName || '______________________'}</span></div>
+          <div>Date: <span className="underline font-normal">______________</span></div>
+          <div>Score: <span className="underline font-normal">______ / {shuffledQuestions.length}</span></div>
+        </div>
+        {printIncludeWordBank && wordBankList.length > 0 && (
+          <div className="border border-black rounded p-2 mb-3 text-center font-sans text-xs">
+            <span className="font-bold mr-2">WORD BANK:</span>
+            <span>{wordBankList.join('   •   ')}</span>
+          </div>
+        )}
+        <p className="italic text-[11px] text-slate-700 mb-3 font-sans">
+          Directions: Read each definition carefully. Write the correct vocabulary word on the blank line provided.
+        </p>
+        <div className={`space-y-${shuffledQuestions.length > 14 ? '2' : '3'} font-sans text-xs`}>
+          {shuffledQuestions.map((q, idx) => (
+            <div key={q.id} className="flex items-baseline gap-2">
+              <span className="font-bold w-5">{idx + 1}.</span>
+              <span className="inline-block border-b border-black min-w-[130px] font-bold text-center">
+                {printIncludeAnswers ? q.word : '\u00A0'}
+              </span>
+              <span className="leading-snug">{q.definition}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

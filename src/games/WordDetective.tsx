@@ -1,133 +1,110 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { Search, Lightbulb, CheckCircle2, RotateCcw, ArrowRight, Award, HelpCircle } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
-import { getWeightedRandomWords, getDistractors, shuffleArray } from '../utils/gameUtils';
-import confetti from 'canvas-confetti';
-import { Link } from 'react-router-dom';
-import { Search, HelpCircle, CheckCircle2, XCircle, Lightbulb } from 'lucide-react';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { playCorrectSound, playIncorrectSound, playWinSound } from '../utils/audio';
 import { haptic } from '../utils/haptics';
-import { useSettingsStore } from '../store/useSettingsStore';
-import { getGradeConfig } from '../utils/gradeConfig';
+import { getWordLinguisticProfile } from '../utils/linguisticEngine';
+import { getDistractors, shuffleArray } from '../utils/gameUtils';
+import { VocabWord } from '../types';
 
 export function WordDetective() {
   const { words, recordPractice } = useVocabStore();
   const { recordAnswer, addCoins, addStars, incrementGamesCompleted } = useProgressStore();
-  const { soundEnabled, gradeLevel, reduceMotion } = useSettingsStore();
-  const config = getGradeConfig(gradeLevel);
-  
+  const { soundEnabled, reduceMotion } = useSettingsStore();
+
   const [gameState, setGameState] = useState<'playing' | 'feedback' | 'finished'>('playing');
   const [questionCount, setQuestionCount] = useState(0);
-  const [currentWord, setCurrentWord] = useState<any>(null);
-  const [options, setOptions] = useState<any[]>([]);
-  const [attempts, setAttempts] = useState(0);
+  const [currentWord, setCurrentWord] = useState<VocabWord | null>(null);
+  const [clueTier, setClueTier] = useState<number>(1);
+  const [clues, setClues] = useState<string[]>([]);
+  const [options, setOptions] = useState<VocabWord[]>([]);
+  const [selectedWord, setSelectedWord] = useState<VocabWord | null>(null);
   const [isCorrect, setIsCorrect] = useState(false);
   const [score, setScore] = useState(0);
-  const [hintsRemaining, setHintsRemaining] = useState(config.hintsAllowed);
-  const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [casesSolvedWithFewestClues, setCasesSolvedWithFewestClues] = useState(0);
 
-  const TOTAL_QUESTIONS = 5;
-  // Ensure we can actually generate enough options based on vocab size
-  const currentOptionsCount = Math.min(words.length, config.answerChoices);
+  const TOTAL_QUESTIONS = Math.min(5, words.length);
 
   useEffect(() => {
-    if (words.length >= 2 && currentWord === null) {
+    if (words.length >= 2 && !currentWord) {
       loadNextQuestion(0);
     }
-    return () => {
-      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    };
   }, [words.length, currentWord]);
 
-  const advanceToNextQuestion = () => {
-    if (gameState !== 'feedback') return;
-    if (advanceTimerRef.current) {
-      clearTimeout(advanceTimerRef.current);
-      advanceTimerRef.current = null;
-    }
-    const nextCount = questionCount + 1;
+  const loadNextQuestion = (nextCount: number) => {
     if (nextCount >= TOTAL_QUESTIONS) {
-      setQuestionCount(TOTAL_QUESTIONS);
       setGameState('finished');
       incrementGamesCompleted();
+      addCoins(70, 'Completed Word Detective');
+      addStars(3);
       playWinSound(soundEnabled);
       haptic.win();
       if (!reduceMotion) {
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-      }
-      return;
-    }
-    setQuestionCount(nextCount);
-    loadNextQuestion(nextCount);
-  };
-
-  const loadNextQuestion = (nextCountOverride?: number) => {
-    const currentCount = typeof nextCountOverride === 'number' ? nextCountOverride : questionCount;
-    if (currentCount >= TOTAL_QUESTIONS) {
-      setQuestionCount(TOTAL_QUESTIONS);
-      setGameState('finished');
-      incrementGamesCompleted();
-      playWinSound(soundEnabled);
-      haptic.win();
-      if (!reduceMotion) {
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        confetti({ particleCount: 160, spread: 80 });
       }
       return;
     }
 
-    const nextWord = getWeightedRandomWords(words, 1)[0];
-    const numOptions = Math.min(words.length - 1, config.answerChoices - 1);
-    const distractors = getDistractors(words, nextWord, numOptions);
-    
-    const allOptions = shuffleArray([...distractors, nextWord]);
-    
-    setCurrentWord(nextWord);
-    setOptions(allOptions.map(o => ({ ...o, disabled: false })));
-    setAttempts(0);
-    setHintsRemaining(config.hintsAllowed);
+    const available = shuffleArray(words);
+    const target = available[nextCount % available.length];
+    const profile = getWordLinguisticProfile(target);
+
+    const distractors = getDistractors(words, target, 3);
+    const allOptions = shuffleArray([target, ...distractors]);
+
+    setCurrentWord(target);
+    setClueTier(1);
+    setClues(profile.clueLadder);
+    setOptions(allOptions);
+    setSelectedWord(null);
+    setIsCorrect(false);
     setGameState('playing');
   };
 
-  const useHint = () => {
-    if (hintsRemaining <= 0 || gameState !== 'playing') return;
-    haptic.medium();
-    setHintsRemaining(prev => prev - 1);
-    
-    const wrongOptions = options.filter(o => o.id !== currentWord.id && !o.disabled);
-    if (wrongOptions.length > 0) {
-      const toDisable = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
-      setOptions(prev => prev.map(o => o.id === toDisable.id ? { ...o, disabled: true } : o));
+  const handleRevealNextClue = () => {
+    if (clueTier < clues.length) {
+      haptic.medium();
+      setClueTier((prev) => prev + 1);
     }
   };
 
-  const handleAnswer = (option: any) => {
-    if (gameState !== 'playing' || option.disabled) return;
-    
-    const correct = option.id === currentWord.id;
-    
+  const handleSelectOption = (opt: VocabWord) => {
+    if (gameState !== 'playing' || !currentWord) return;
+
+    setSelectedWord(opt);
+    const correct = opt.id === currentWord.id;
+    setIsCorrect(correct);
+    setGameState('feedback');
+
+    recordPractice(currentWord.id, correct, 'recall');
+    recordAnswer(correct);
+
     if (correct) {
       playCorrectSound(soundEnabled);
       haptic.success();
-      setIsCorrect(true);
-      setGameState('feedback');
-      recordPractice(currentWord.id, attempts === 0); 
-      recordAnswer(attempts === 0);
-      
-      const points = attempts === 0 ? 100 : attempts === 1 ? 50 : 25;
-      setScore(s => s + points);
-      addCoins(points / 5);
-      if (attempts === 0) addStars(1);
+      // More points if solved at earlier clue tiers
+      const tierPoints = clueTier === 1 ? 120 : clueTier === 2 ? 90 : clueTier === 3 ? 60 : 40;
+      setScore((s) => s + tierPoints);
+      addCoins(Math.round(tierPoints / 4));
 
-      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-      advanceTimerRef.current = setTimeout(() => {
-        advanceToNextQuestion();
-      }, 2000);
+      if (clueTier <= 2) {
+        setCasesSolvedWithFewestClues((prev) => prev + 1);
+        addStars(1);
+      }
     } else {
       playIncorrectSound(soundEnabled);
       haptic.error();
-      setAttempts(prev => prev + 1);
-      setOptions(prev => prev.map(o => o.id === option.id ? { ...o, disabled: true } : o));
     }
+  };
+
+  const handleNextCase = () => {
+    const nextCount = questionCount + 1;
+    setQuestionCount(nextCount);
+    loadNextQuestion(nextCount);
   };
 
   if (words.length < 2) {
@@ -137,7 +114,7 @@ export function WordDetective() {
           <div className="text-4xl mb-3">🔍</div>
           <h2 className="text-2xl font-black text-slate-800 mb-2">Need More Words!</h2>
           <p className="text-sm text-slate-600 mb-6 font-bold">
-            Word Detective requires at least 2 vocabulary words to play.
+            Word Detective requires at least 2 vocabulary words to investigate.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
@@ -160,27 +137,41 @@ export function WordDetective() {
 
   if (gameState === 'finished') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 sm:gap-6 p-4">
-        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border-4 sm:border-8 border-teal-300 text-center max-w-md w-full">
-          <Search size={44} className="mx-auto text-teal-500 mb-3 sm:w-12 sm:h-12" />
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-800 mb-2">Case Closed!</h2>
-          <p className="text-lg sm:text-xl font-bold text-teal-600 mb-6">Detective Score: {score}</p>
-          <div className="flex flex-col gap-3">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-4 max-w-lg mx-auto">
+        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border-4 sm:border-8 border-teal-300 text-center w-full">
+          <div className="w-16 h-16 bg-teal-100 rounded-2xl flex items-center justify-center text-teal-600 mx-auto mb-4">
+            <Search size={36} />
+          </div>
+          <h2 className="text-3xl font-black text-slate-800 mb-2">All Cases Closed!</h2>
+          <p className="text-slate-600 text-sm font-bold mb-4">
+            You reasoned through evidence ladders and solved all {TOTAL_QUESTIONS} mysteries!
+          </p>
+          <div className="bg-teal-50 border-2 border-teal-200 rounded-2xl p-4 mb-6">
+            <span className="text-xs uppercase tracking-wider font-black text-teal-700 block mb-1">
+              Detective Rating
+            </span>
+            <span className="text-2xl font-black text-teal-600">
+              {casesSolvedWithFewestClues >= 3 ? '🥇 Master Detective' : '🥈 Senior Sleuth'} ({score} pts)
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => {
                 setQuestionCount(0);
                 setScore(0);
+                setCasesSolvedWithFewestClues(0);
                 loadNextQuestion(0);
               }}
-              className="bg-teal-500 border-b-4 sm:border-b-8 border-teal-700 text-white font-black p-3.5 sm:p-4 rounded-xl active:border-b-0 active:translate-y-1 sm:active:translate-y-2 transition-all text-sm sm:text-base"
+              className="flex-1 py-3 px-4 bg-teal-500 hover:bg-teal-600 text-white font-black rounded-xl text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              Solve Another Case
+              <RotateCcw size={18} /> Solve New Cases
             </button>
             <Link
               to="/games"
-              className="bg-slate-200 border-b-4 sm:border-b-8 border-slate-300 text-slate-600 font-black p-3.5 sm:p-4 rounded-xl active:border-b-0 active:translate-y-1 sm:active:translate-y-2 transition-all block text-center text-sm sm:text-base"
+              className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-sm transition-all active:scale-95 text-center"
             >
-              Back to Games
+              All Games
             </Link>
           </div>
         </div>
@@ -189,110 +180,128 @@ export function WordDetective() {
   }
 
   return (
-    <div
-      onClick={() => {
-        if (gameState === 'feedback') {
-          advanceToNextQuestion();
-        }
-      }}
-      className={`flex-1 flex flex-col items-center p-2.5 sm:p-4 w-full max-w-2xl mx-auto ${
-        gameState === 'feedback' ? 'cursor-pointer' : ''
-      }`}
-    >
-      <div className="w-full flex justify-between items-center bg-white/90 p-3 sm:p-4 rounded-2xl shadow-sm border-2 sm:border-4 border-slate-200 mb-3 sm:mb-6">
-        <div className="flex items-center gap-2 text-teal-600 font-black text-xs sm:text-base">
-          <Search size={20} className="sm:w-6 sm:h-6" /> CASE {Math.min(questionCount + 1, TOTAL_QUESTIONS)}/{TOTAL_QUESTIONS}
+    <div className="flex-1 flex flex-col items-center py-4 px-2 max-w-2xl mx-auto w-full">
+      {/* Header Info */}
+      <div className="w-full flex items-center justify-between mb-4 bg-white/90 p-3 sm:p-4 rounded-2xl border-2 sm:border-4 border-slate-200 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-teal-600">
+            <Search size={20} />
+          </div>
+          <div>
+            <h1 className="font-black text-sm sm:text-base text-slate-800">Word Detective</h1>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-500">
+              Case {questionCount + 1} of {TOTAL_QUESTIONS}
+            </span>
+          </div>
         </div>
-        <span className="font-black text-slate-500 text-base sm:text-xl">{score} pts</span>
-      </div>
-
-      <div className="bg-teal-50 w-full p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-md border-4 sm:border-8 border-teal-300 text-center mb-4 sm:mb-8 relative overflow-hidden">
-        {hintsRemaining > 0 && gameState === 'playing' && (
-          <button
-            onClick={useHint}
-            className="absolute top-2 right-2 sm:-top-1 sm:-right-1 bg-yellow-400 text-yellow-900 border-b-2 sm:border-b-4 border-yellow-600 p-2 sm:p-3 rounded-full hover:bg-yellow-300 active:translate-y-1 active:border-b-0 transition-all shadow-lg z-20 group"
-          >
-            <Lightbulb size={20} className="group-hover:animate-pulse sm:w-6 sm:h-6" />
-          </button>
-        )}
-        <div className="absolute -top-4 -left-4 text-teal-200 opacity-40 rotate-12 pointer-events-none">
-          <Search size={80} className="sm:w-24 sm:h-24" />
-        </div>
-        <p className="text-teal-600 font-black uppercase tracking-widest mb-2 sm:mb-4 relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-          <HelpCircle size={18} /> CLUE
-        </p>
-        <p className="text-lg sm:text-2xl md:text-3xl font-black text-slate-800 relative z-10 leading-snug break-words">
-          "{currentWord?.definition}"
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4 w-full">
-        {options.map((opt, i) => {
-          if (opt.disabled) {
-            return (
-              <div
-                key={i}
-                className="p-3.5 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl font-black text-sm sm:text-base md:text-xl bg-slate-100 border-2 sm:border-4 border-slate-200 text-slate-400 opacity-50 flex justify-between items-center"
-              >
-                <span className="line-through truncate mr-2">{opt.word}</span>
-                <XCircle size={20} className="shrink-0" />
-              </div>
-            );
-          }
-
-          let btnClass =
-            'bg-white border-b-4 sm:border-b-8 border-slate-300 text-slate-700 hover:bg-slate-50 border-t-2 sm:border-t-4 border-x-2 sm:border-x-4';
-          if (gameState === 'feedback' && opt.id === currentWord.id) {
-            btnClass =
-              'bg-emerald-100 border-emerald-400 text-emerald-800 border-b-2 sm:border-b-4 translate-y-0.5 sm:translate-y-1';
-          }
-
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => {
-                if (gameState === 'feedback') {
-                  advanceToNextQuestion();
-                } else if (gameState === 'playing') {
-                  handleAnswer(opt);
-                }
-              }}
-              className={`p-3.5 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl font-black text-sm sm:text-base md:text-xl transition-all active:border-b-0 active:translate-y-1 sm:active:translate-y-2 flex justify-between items-center ${btnClass}`}
-            >
-              <span className="truncate mr-2">{opt.word}</span>
-              {gameState === 'feedback' && opt.id === currentWord.id && (
-                <CheckCircle2 size={20} className="shrink-0 sm:w-6 sm:h-6" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Feedback & Tap to Advance */}
-      {gameState === 'feedback' && (
-        <div className="mt-4 flex flex-col items-center gap-2">
-          <span className="text-emerald-600 font-black text-base sm:text-lg animate-bounce">
-            Case Solved! +Points Earned
+        <div className="flex items-center gap-2">
+          <span className="bg-teal-50 border border-teal-200 text-teal-700 px-2 py-0.5 rounded-lg text-xs font-black">
+            Clue {clueTier}/4
           </span>
+          <span className="font-black text-teal-600 text-base">{score} pts</span>
+        </div>
+      </div>
+
+      {/* Progressive Clue Evidence Board */}
+      <div className="w-full bg-slate-900 rounded-3xl p-5 sm:p-6 text-white shadow-xl mb-4 border-4 border-slate-800">
+        <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+          <div className="flex items-center gap-2 text-teal-400 text-xs font-black uppercase tracking-wider">
+            <HelpCircle size={16} />
+            <span>Detective Case Dossier</span>
+          </div>
+          {clueTier < clues.length && gameState === 'playing' && (
+            <button
+              onClick={handleRevealNextClue}
+              className="flex items-center gap-1.5 px-3 py-1 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 font-black rounded-xl text-xs transition-transform active:scale-95 shadow-sm"
+            >
+              <Lightbulb size={14} />
+              <span>Reveal Clue {clueTier + 1}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Revealed Clues List */}
+        <div className="flex flex-col gap-2.5">
+          {clues.slice(0, clueTier).map((clue, idx) => (
+            <div
+              key={idx}
+              className="bg-slate-800/90 border border-teal-500/30 p-3 rounded-2xl flex items-start gap-2.5 text-xs sm:text-sm text-teal-50"
+            >
+              <span className="w-5 h-5 rounded-md bg-teal-500 text-slate-900 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                {idx + 1}
+              </span>
+              <p className="font-semibold leading-relaxed">{clue}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Suspect Word Cards */}
+      <div className="w-full flex flex-col gap-2.5 mb-4">
+        <span className="text-xs font-black uppercase tracking-wider text-slate-400 px-1">
+          Select the mystery vocabulary word:
+        </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {options.map((opt) => {
+            let cardClass =
+              'bg-white hover:bg-teal-50/50 border-slate-200 text-slate-800 hover:border-teal-300';
+            if (gameState === 'feedback') {
+              if (opt.id === currentWord?.id) {
+                cardClass = 'bg-emerald-50 border-emerald-400 text-emerald-950 ring-2 ring-emerald-200';
+              } else if (selectedWord?.id === opt.id) {
+                cardClass = 'bg-rose-50 border-rose-400 text-rose-950 ring-2 ring-rose-200';
+              } else {
+                cardClass = 'bg-slate-50 border-slate-200 text-slate-400 opacity-50';
+              }
+            }
+
+            return (
+              <button
+                key={opt.id}
+                disabled={gameState === 'feedback'}
+                onClick={() => handleSelectOption(opt)}
+                className={`p-4 rounded-2xl border-2 sm:border-3 font-black text-base sm:text-lg shadow-xs transition-all active:scale-95 text-left flex flex-col gap-0.5 ${cardClass}`}
+              >
+                <span>{opt.word}</span>
+                <span className="text-xs text-slate-500 font-normal truncate">
+                  {opt.definition}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Feedback Panel */}
+      {gameState === 'feedback' && currentWord && (
+        <div
+          className={`w-full p-4 rounded-2xl border-2 sm:border-4 mb-4 ${
+            isCorrect
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+              : 'bg-rose-50 border-rose-300 text-rose-950'
+          }`}
+        >
+          <div className="flex items-center gap-2 font-black text-sm sm:text-base mb-1">
+            {isCorrect ? (
+              <>
+                <CheckCircle2 size={20} className="text-emerald-600" />
+                <span>Mystery Solved!</span>
+              </>
+            ) : (
+              <span>Case Deduction: The correct word was "{currentWord.word}".</span>
+            )}
+          </div>
+          <p className="text-xs sm:text-sm font-semibold mb-3">
+            "{currentWord.word}" means: {currentWord.definition}
+          </p>
           <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              advanceToNextQuestion();
-            }}
-            className="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white font-black rounded-xl text-xs sm:text-sm shadow-md animate-pulse flex items-center gap-2 cursor-pointer transition-transform hover:scale-105"
+            onClick={handleNextCase}
+            className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs sm:text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
           >
-            <span>Next Case ➔</span>
-            <span className="text-[10px] opacity-80 font-normal">(Tap anywhere to advance)</span>
+            <span>Next Case</span>
+            <ArrowRight size={16} />
           </button>
         </div>
-      )}
-
-      {attempts > 0 && gameState === 'playing' && (
-        <p className="mt-4 sm:mt-6 text-rose-500 font-bold text-xs sm:text-sm animate-pulse text-center">
-          Not quite... try another clue!
-        </p>
       )}
     </div>
   );

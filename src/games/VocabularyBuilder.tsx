@@ -1,106 +1,133 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { Blocks, Hammer, CheckCircle2, RotateCcw, ArrowRight, Sparkles, Building2 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
-import { getWeightedRandomWords, getDistractors, shuffleArray } from '../utils/gameUtils';
-import confetti from 'canvas-confetti';
-import { Link } from 'react-router-dom';
-import { Blocks, Hammer } from 'lucide-react';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { playCorrectSound, playIncorrectSound, playWinSound } from '../utils/audio';
 import { haptic } from '../utils/haptics';
-import { useSettingsStore } from '../store/useSettingsStore';
-import { getGradeConfig } from '../utils/gradeConfig';
+import { getWordLinguisticProfile, chunkWordIntoSyllables } from '../utils/linguisticEngine';
+import { shuffleArray, getRandomWords } from '../utils/gameUtils';
+import { VocabWord } from '../types';
+
+interface ChunkBlock {
+  id: string;
+  chunk: string;
+  isUsed: boolean;
+}
 
 export function VocabularyBuilder() {
   const { words, recordPractice } = useVocabStore();
   const { recordAnswer, addCoins, addStars, incrementGamesCompleted } = useProgressStore();
-  const { soundEnabled, gradeLevel, reduceMotion } = useSettingsStore();
-  const config = getGradeConfig(gradeLevel);
-  
-  const [gameState, setGameState] = useState<'playing' | 'finished'>('playing');
-  const [buildLevel, setBuildLevel] = useState(0);
-  const [currentWord, setCurrentWord] = useState<any>(null);
-  const [options, setOptions] = useState<any[]>([]);
-  const [isWrong, setIsWrong] = useState(false);
-  const [score, setScore] = useState(0);
-  const [isAdvancing, setIsAdvancing] = useState(false);
-  const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { soundEnabled, reduceMotion } = useSettingsStore();
 
-  const TOTAL_LEVELS = 5;
+  const [gameState, setGameState] = useState<'building' | 'verifying' | 'finished'>('building');
+  const [currentWord, setCurrentWord] = useState<VocabWord | null>(null);
+  const [level, setLevel] = useState(0);
+  const [expectedChunks, setExpectedChunks] = useState<string[]>([]);
+  const [placedChunks, setPlacedChunks] = useState<string[]>([]);
+  const [availableBlocks, setAvailableBlocks] = useState<ChunkBlock[]>([]);
+  const [score, setScore] = useState(0);
+  const [mistakesThisWord, setMistakesThisWord] = useState(0);
+  const [towerHeight, setTowerHeight] = useState(0);
+
+  const TOTAL_LEVELS = Math.min(5, words.length);
 
   useEffect(() => {
-    if (words.length >= 2 && currentWord === null) {
-      loadNextQuestion(0);
+    if (words.length >= 2 && !currentWord) {
+      loadLevel(0);
     }
-    return () => {
-      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    };
   }, [words.length, currentWord]);
 
-  const loadNextQuestion = (targetLevel?: number) => {
-    const level = typeof targetLevel === 'number' ? targetLevel : buildLevel;
-    if (level >= TOTAL_LEVELS) {
+  const loadLevel = (lvl: number) => {
+    if (lvl >= TOTAL_LEVELS) {
       setGameState('finished');
       incrementGamesCompleted();
+      addCoins(80, 'Completed Vocabulary Builder');
+      addStars(4);
       playWinSound(soundEnabled);
       haptic.win();
       if (!reduceMotion) {
-        confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
+        confetti({ particleCount: 200, spread: 90 });
       }
       return;
     }
 
-    const nextWord = getWeightedRandomWords(words, 1)[0];
-    const numOptions = Math.min(words.length - 1, config.answerChoices - 1);
-    const distractors = getDistractors(words, nextWord, numOptions);
-    
-    const allOptions = shuffleArray([...distractors, nextWord]);
-    
-    setCurrentWord(nextWord);
-    setOptions(allOptions);
-    setIsWrong(false);
-    setIsAdvancing(false);
+    const available = shuffleArray(words);
+    const target = available[lvl % available.length];
+    const profile = getWordLinguisticProfile(target);
+
+    // Chunks (syllables or morphemes)
+    const chunks = profile.syllables && profile.syllables.length > 1
+      ? profile.syllables
+      : chunkWordIntoSyllables(target.word);
+
+    // Create 1 or 2 distractor chunks from other words
+    const otherWords = words.filter((w) => w.id !== target.id);
+    const distractorChunkList: string[] = [];
+    if (otherWords.length > 0) {
+      const otherChunks = chunkWordIntoSyllables(otherWords[0].word);
+      distractorChunkList.push(otherChunks[0]);
+    }
+    if (otherWords.length > 1) {
+      const otherChunks2 = chunkWordIntoSyllables(otherWords[1].word);
+      distractorChunkList.push(otherChunks2[otherChunks2.length - 1]);
+    }
+
+    const allChunkItems: ChunkBlock[] = [
+      ...chunks.map((ch, i) => ({ id: `chunk-${ch}-${i}`, chunk: ch, isUsed: false })),
+      ...distractorChunkList.map((ch, i) => ({ id: `distract-${ch}-${i}`, chunk: ch, isUsed: false })),
+    ];
+
+    setCurrentWord(target);
+    setExpectedChunks(chunks);
+    setPlacedChunks([]);
+    setAvailableBlocks(shuffleArray(allChunkItems));
+    setMistakesThisWord(0);
+    setGameState('building');
   };
 
-  const handleAnswer = (option: any) => {
-    if (isAdvancing || gameState !== 'playing') return;
-    const correct = option.id === currentWord.id;
-    
-    if (correct) {
-      setIsAdvancing(true);
+  const handlePlaceChunk = (block: ChunkBlock) => {
+    if (block.isUsed || gameState !== 'building' || !currentWord) return;
+
+    const nextIndex = placedChunks.length;
+    const targetExpected = expectedChunks[nextIndex];
+
+    if (block.chunk.toLowerCase() === targetExpected.toLowerCase()) {
       playCorrectSound(soundEnabled);
       haptic.success();
-      setIsWrong(false);
-      const nextLevel = buildLevel + 1;
-      setBuildLevel(nextLevel);
-      setScore(s => s + 100);
-      addCoins(20);
-      addStars(1);
-      recordPractice(currentWord.id, !isWrong);
-      recordAnswer(!isWrong);
-      
-      if (nextLevel >= TOTAL_LEVELS) {
-        setGameState('finished');
-        incrementGamesCompleted();
-        playWinSound(soundEnabled);
-        haptic.win();
-        if (!reduceMotion) {
-          confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
-        }
-        setIsAdvancing(false);
-        return;
-      }
+      const updatedPlaced = [...placedChunks, block.chunk];
+      setPlacedChunks(updatedPlaced);
+      setAvailableBlocks((prev) =>
+        prev.map((b) => (b.id === block.id ? { ...b, isUsed: true } : b))
+      );
 
-      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-      advanceTimerRef.current = setTimeout(() => {
-        loadNextQuestion(nextLevel);
-      }, 700);
+      // Check if all chunks placed
+      if (updatedPlaced.length === expectedChunks.length) {
+        setTowerHeight((prev) => prev + 1);
+        setGameState('verifying');
+      }
     } else {
       playIncorrectSound(soundEnabled);
       haptic.error();
-      setIsWrong(true);
-      recordPractice(currentWord.id, false);
-      recordAnswer(false);
+      setMistakesThisWord((prev) => prev + 1);
     }
+  };
+
+  const handleVerifySuccess = () => {
+    if (!currentWord) return;
+
+    const isFlawless = mistakesThisWord === 0;
+    recordPractice(currentWord.id, isFlawless, 'spelling');
+    recordAnswer(isFlawless);
+
+    setScore((prev) => prev + (isFlawless ? 120 : 70));
+    addCoins(15);
+
+    const nextLvl = level + 1;
+    setLevel(nextLvl);
+    loadLevel(nextLvl);
   };
 
   if (words.length < 2) {
@@ -133,29 +160,39 @@ export function VocabularyBuilder() {
 
   if (gameState === 'finished') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 sm:gap-6 p-4">
-        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border-4 sm:border-8 border-pink-300 text-center max-w-md w-full">
-          <Blocks size={56} className="mx-auto text-pink-500 mb-3 sm:w-16 sm:h-16" />
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-800 mb-2">Master Builder!</h2>
-          <p className="text-lg sm:text-xl font-bold text-pink-500 mb-6">Score: {score}</p>
-          <div className="flex flex-col gap-3">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-4 max-w-lg mx-auto">
+        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border-4 sm:border-8 border-pink-300 text-center w-full">
+          <div className="w-16 h-16 bg-pink-100 rounded-2xl flex items-center justify-center text-pink-600 mx-auto mb-4">
+            <Building2 size={36} />
+          </div>
+          <h2 className="text-3xl font-black text-slate-800 mb-2">Master Architect!</h2>
+          <p className="text-slate-600 text-sm font-bold mb-4">
+            You successfully constructed and verified all {TOTAL_LEVELS} vocabulary towers!
+          </p>
+          <div className="bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-6">
+            <span className="text-xs uppercase tracking-wider font-black text-pink-700 block mb-1">
+              Architecture Score
+            </span>
+            <span className="text-3xl font-black text-pink-600">{score} pts</span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => {
-                haptic.medium();
-                setBuildLevel(0);
+                setLevel(0);
                 setScore(0);
-                setGameState('playing');
-                loadNextQuestion();
+                setTowerHeight(0);
+                loadLevel(0);
               }}
-              className="bg-pink-500 border-b-4 sm:border-b-8 border-pink-700 text-white font-black p-3.5 sm:p-4 rounded-xl active:border-b-0 active:translate-y-1 sm:active:translate-y-2 transition-all text-sm sm:text-base"
+              className="flex-1 py-3 px-4 bg-pink-500 hover:bg-pink-600 text-white font-black rounded-xl text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              Build Again
+              <RotateCcw size={18} /> Build New Towers
             </button>
             <Link
               to="/games"
-              className="bg-slate-200 border-b-4 sm:border-b-8 border-slate-300 text-slate-600 font-black p-3.5 sm:p-4 rounded-xl active:border-b-0 active:translate-y-1 sm:active:translate-y-2 transition-all block text-sm sm:text-base text-center"
+              className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-sm transition-all active:scale-95 text-center"
             >
-              Back to Games
+              All Games
             </Link>
           </div>
         </div>
@@ -163,59 +200,108 @@ export function VocabularyBuilder() {
     );
   }
 
-  // Generate building blocks based on buildLevel
-  const blocks = [];
-  for (let i = 0; i < TOTAL_LEVELS; i++) {
-    blocks.push(
-      <div
-        key={i}
-        className={`w-full h-7 sm:h-9 md:h-10 rounded-lg border-2 sm:border-4 transition-all duration-500 flex items-center justify-center font-black text-[10px] sm:text-xs md:text-sm ${
-          i < buildLevel
-            ? 'bg-pink-500 border-pink-700 text-white scale-100 opacity-100'
-            : 'bg-slate-100 border-slate-200 text-slate-300 scale-95 opacity-50'
-        }`}
-      >
-        {i < buildLevel ? 'SOLID FOUNDATION' : 'NEEDS BLOCK'}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex-1 flex flex-col items-center justify-between p-2.5 sm:p-4 w-full max-w-2xl mx-auto h-full min-h-0">
-      <div className="w-full flex justify-between items-center bg-white/90 p-3 sm:p-4 rounded-2xl shadow-sm border-2 sm:border-4 border-slate-200 mb-3 sm:mb-4">
-        <span className="font-black text-slate-600 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-base">
-          <Hammer size={18} className="sm:w-5 sm:h-5 text-pink-500" /> Level {buildLevel + 1}
-        </span>
-        <span className="font-black text-pink-500 text-base sm:text-xl">{score} pts</span>
+    <div className="flex-1 flex flex-col items-center py-4 px-2 max-w-2xl mx-auto w-full">
+      {/* Header Info */}
+      <div className="w-full flex items-center justify-between mb-4 bg-white/90 p-3 sm:p-4 rounded-2xl border-2 sm:border-4 border-slate-200 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center text-pink-600">
+            <Blocks size={20} />
+          </div>
+          <div>
+            <h1 className="font-black text-sm sm:text-base text-slate-800">Vocabulary Builder</h1>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-500">
+              Tower {level + 1} of {TOTAL_LEVELS}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="bg-pink-50 border border-pink-200 text-pink-700 px-2 py-0.5 rounded-lg text-xs font-black">
+            🏢 {towerHeight} Built
+          </span>
+          <span className="font-black text-pink-600 text-base">{score} pts</span>
+        </div>
       </div>
 
-      <div className="w-full flex flex-col justify-end gap-1.5 sm:gap-2 mb-4 sm:mb-6 px-3 sm:px-8">
-        {/* Render blocks in reverse so they stack upwards */}
-        {[...blocks].reverse()}
-      </div>
+      {currentWord && (
+        <div className="w-full flex flex-col gap-4">
+          {/* Blueprint Card */}
+          <div className="w-full bg-gradient-to-r from-pink-600 to-rose-600 rounded-3xl p-5 text-white text-center shadow-lg">
+            <span className="text-[10px] sm:text-xs font-bold tracking-widest uppercase text-pink-200 block mb-1">
+              Building Blueprint: Meaning
+            </span>
+            <h2 className="text-xl sm:text-2xl font-black mb-1">
+              "{currentWord.definition}"
+            </h2>
+          </div>
 
-      <div className="bg-white w-full p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-md border-4 sm:border-8 border-pink-300 text-center mb-3 sm:mb-4">
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-800 break-words">
-          {currentWord?.word}
-        </h2>
-        {isWrong && (
-          <p className="text-rose-500 font-bold mt-1 sm:mt-2 text-xs sm:text-sm animate-bounce">
-            That block doesn't fit! Try another.
-          </p>
-        )}
-      </div>
+          {/* Construction Foundation: Assembled Slots */}
+          <div className="w-full bg-white p-5 rounded-3xl border-2 sm:border-4 border-slate-200 shadow-sm flex flex-col items-center gap-3">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Assembled Word Structure:
+            </span>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {expectedChunks.map((_, i) => (
+                <div
+                  key={i}
+                  className={`min-w-[64px] sm:min-w-[80px] h-12 sm:h-14 px-3 rounded-2xl border-3 flex items-center justify-center font-black text-base sm:text-lg shadow-inner ${
+                    placedChunks[i]
+                      ? 'bg-pink-100 border-pink-500 text-pink-800'
+                      : 'bg-slate-50 border-dashed border-slate-300 text-slate-300'
+                  }`}
+                >
+                  {placedChunks[i] || `Chunk ${i + 1}`}
+                </div>
+              ))}
+            </div>
+          </div>
 
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-        {options.map((opt, i) => (
-          <button
-            key={i}
-            onClick={() => handleAnswer(opt)}
-            className="bg-white border-b-4 sm:border-b-8 border-slate-300 text-slate-700 hover:bg-slate-50 border-t-2 sm:border-t-4 border-x-2 sm:border-x-4 p-3 sm:p-4 rounded-xl font-bold text-xs sm:text-sm md:text-base transition-all active:border-b-0 active:translate-y-1 sm:active:translate-y-2 text-left leading-snug break-words"
-          >
-            {opt.definition}
-          </button>
-        ))}
-      </div>
+          {/* Available Chunks to Tap */}
+          {gameState === 'building' && (
+            <div className="w-full bg-slate-50 p-4 rounded-3xl border-2 border-slate-200 shadow-xs flex flex-col items-center gap-3">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Tap matching syllable or morpheme block:
+              </span>
+              <div className="flex flex-wrap justify-center gap-2.5">
+                {availableBlocks.map((block) => (
+                  <button
+                    key={block.id}
+                    disabled={block.isUsed}
+                    onClick={() => handlePlaceChunk(block)}
+                    className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-black text-base sm:text-lg border-2 sm:border-3 shadow-xs transition-all active:scale-95 ${
+                      block.isUsed
+                        ? 'bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed opacity-40'
+                        : 'bg-white hover:bg-pink-50 border-pink-300 hover:border-pink-400 text-pink-700'
+                    }`}
+                  >
+                    {block.chunk}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Verification Stage */}
+          {gameState === 'verifying' && (
+            <div className="w-full bg-emerald-50 border-3 border-emerald-400 p-5 rounded-3xl text-center shadow-md">
+              <div className="flex items-center justify-center gap-2 text-emerald-800 font-black text-lg mb-1">
+                <CheckCircle2 size={24} className="text-emerald-600" />
+                <span>Word Construction Complete: {currentWord.word}!</span>
+              </div>
+              <p className="text-xs sm:text-sm text-emerald-700 font-bold mb-4">
+                Now verify understanding: "{currentWord.word}" means {currentWord.definition.toLowerCase()}
+              </p>
+              <button
+                onClick={handleVerifySuccess}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>Complete Tower & Next Word</span>
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
