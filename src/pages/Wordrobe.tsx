@@ -16,9 +16,11 @@ import {
   Layers,
   Sparkle,
   RotateCcw,
+  Camera,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { playTabSound, playMascotSound, playClickSound } from '../utils/audio';
+import { resolveEquippedItemForLayer, normalizeLayerName } from '../utils/avatarRenderer';
 
 const WARDROBE_SLOT_TABS: { id: string; label: string; layer?: SpriteLayer }[] = [
   { id: 'All', label: 'All Items' },
@@ -48,6 +50,7 @@ export function Wordrobe() {
     setMascotName,
     wardrobeStyle = 'all',
     setWardrobeStyle,
+    setAvatarExportOpen,
   } = useProgressStore();
 
   const { token } = useAuthStore();
@@ -139,11 +142,11 @@ export function Wordrobe() {
       if (!item.items) return false;
       return item.items.every((id: string) => {
         const meta = SPRITE_ITEMS[id];
-        return meta && equipped[meta.layer] === id;
+        return meta && resolveEquippedItemForLayer(meta.layer, equipped) === id;
       });
     }
-    const slot = item.layer || item.category;
-    return equipped[slot] === item.id;
+    const layer = (item.layer as SpriteLayer) || normalizeLayerName(item.category) || 'BODY';
+    return resolveEquippedItemForLayer(layer, equipped) === item.id;
   };
 
   const handleClearEquipment = () => {
@@ -301,7 +304,14 @@ export function Wordrobe() {
             </div>
 
             {/* Mascot Live Display (Nearest-Neighbor 64x64 Composite) */}
-            <div className="relative z-10 my-2 flex items-center justify-center p-3 bg-gradient-to-b from-amber-50/50 to-amber-100/50 rounded-2xl border-2 border-amber-200 shadow-inner">
+            <div
+              onClick={() => {
+                playClickSound();
+                setAvatarExportOpen(true);
+              }}
+              className="relative z-10 my-2 flex flex-col items-center justify-center p-3 bg-gradient-to-b from-amber-50/50 to-amber-100/50 rounded-2xl border-2 border-amber-200 shadow-inner cursor-pointer hover:border-amber-400 group/stage transition-all"
+              title="Click on Avatar to Save as PNG (2x - 10x scale)!"
+            >
               <PixelAvatar
                 avatarId={currentAvatarId}
                 equipped={equipped}
@@ -310,6 +320,10 @@ export function Wordrobe() {
                 zoom={zoomLevel}
                 animated
               />
+              <div className="mt-2 opacity-90 group-hover/stage:opacity-100 transition-opacity bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 border border-amber-300">
+                <Camera size={13} />
+                <span>Save Avatar PNG (2x - 10x)</span>
+              </div>
             </div>
 
             {/* Pedestal Shadow */}

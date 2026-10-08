@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Gamepad2, Map, Trophy, BookMarked, Store, Flame, Pencil, Check, X, Sparkles, FileCheck } from 'lucide-react';
+import { BookOpen, Gamepad2, Map, Trophy, BookMarked, Store, Flame, Pencil, Check, X, Sparkles, FileCheck, Camera } from 'lucide-react';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -8,6 +8,7 @@ import { SHOP_ITEMS } from '../data/shopItems';
 import { MascotAvatar } from '../components/MascotAvatar';
 import { LessonSelector } from '../components/LessonSelector';
 import { playMascotSound, playClickSound } from '../utils/audio';
+import { notify } from '../components/NotificationToast';
 
 function MascotDisplay() {
   const {
@@ -20,6 +21,7 @@ function MascotDisplay() {
     spendCoins,
     feedMascot,
     playWithMascot,
+    setAvatarExportOpen,
   } = useProgressStore();
   const { token } = useAuthStore();
 
@@ -53,7 +55,7 @@ function MascotDisplay() {
     if (spendCoins(10)) {
       feedMascot(15);
     } else {
-      alert('Not enough coins to buy food!');
+      notify.warning('Not enough coins to buy food! Play games to earn more coins.');
     }
   };
 
@@ -62,7 +64,7 @@ function MascotDisplay() {
     if (spendCoins(10)) {
       playWithMascot(15);
     } else {
-      alert('Not enough coins to buy toys!');
+      notify.warning('Not enough coins to buy toys! Play games to earn more coins.');
     }
   };
 
@@ -79,11 +81,18 @@ function MascotDisplay() {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-100 via-white to-white opacity-50"></div>
 
       <div 
-        onClick={() => playMascotSound()}
-        className="relative z-10 mb-3 mt-4 sm:mt-2 flex items-end justify-center gap-2 max-w-full cursor-pointer transition-transform active:scale-95"
-        title="Pet Mascot Companion"
+        onClick={() => {
+          playMascotSound();
+          setAvatarExportOpen(true);
+        }}
+        className="relative z-10 mb-2 mt-4 sm:mt-2 flex flex-col items-center justify-center max-w-full cursor-pointer transition-transform hover:scale-105 active:scale-95 group/avatar"
+        title="Click to view & save avatar as PNG (2x - 10x scale)!"
       >
         <MascotAvatar equipped={equipped} size={140} />
+        <div className="mt-1.5 opacity-90 group-hover/avatar:opacity-100 transition-opacity bg-amber-500/90 hover:bg-amber-600 text-white text-[11px] font-black px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 border border-amber-300">
+          <Camera size={13} />
+          <span>Save Avatar PNG (2x - 10x)</span>
+        </div>
       </div>
 
       {/* Mascot Name and Interactive Rename */}

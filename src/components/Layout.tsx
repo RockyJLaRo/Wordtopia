@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { StarterSelectionModal } from './StarterSelectionModal';
+import { AvatarExportModal } from './AvatarExportModal';
 import { useState } from 'react';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -77,6 +78,7 @@ export function Layout() {
   return (
     <>
       <StarterSelectionModal />
+      <AvatarExportModal />
       <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
       <div className="min-h-screen bg-sky-100 flex flex-col font-sans text-slate-800">
         <Onboarding />

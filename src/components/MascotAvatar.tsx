@@ -46,9 +46,18 @@ export function MascotAvatar({
 }: MascotAvatarProps) {
   const storeEquipped = useProgressStore((state) => state.equipped);
   const storeMascotBaseId = useProgressStore((state) => state.mascotBaseId);
+  const setAvatarExportOpen = useProgressStore((state) => state.setAvatarExportOpen);
 
   const activeEquipped = propEquipped || storeEquipped || {};
   const activeAvatarId = normalizeAvatarId(avatarId || storeMascotBaseId);
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      setAvatarExportOpen(true);
+    }
+  };
 
   return (
     <PixelAvatar
@@ -59,7 +68,7 @@ export function MascotAvatar({
       className={className}
       animated={animated}
       zoom={zoom}
-      onClick={onClick}
+      onClick={handleClick}
     />
   );
 }

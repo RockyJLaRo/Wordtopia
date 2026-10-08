@@ -36,6 +36,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { GameGraphic } from '../components/GameGraphic';
+import { notify } from '../components/NotificationToast';
 
 type AdminTab = 'dashboard' | 'users' | 'feedback' | 'analytics' | 'diagnostics' | 'errors' | 'audit' | 'privacy' | 'data';
 
@@ -190,16 +191,15 @@ export function AdminDashboard() {
         setActionSuccess(`Secure reset initiated for ${data.userEmail}! Audit log recorded.`);
         fetchDashboardData();
       } else {
-        alert(data.error);
+        notify.error(data.error || 'Failed to initiate reset');
       }
     } catch (err: any) {
-      alert(err.message);
+      notify.error(err.message || 'Error initiating password reset');
     }
   };
 
   const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'active' ? 'suspended' : 'active';
-    if (!confirm(`Are you sure you want to change user status to ${nextStatus}?`)) return;
 
     try {
       const res = await fetch(`/api/admin/users/${userId}/status`, {
@@ -218,7 +218,6 @@ export function AdminDashboard() {
   };
 
   const handleDeleteUser = async (userId: string, username: string) => {
-    if (!confirm(`Are you sure you want to permanently delete user "${username}" and all their progress data? This cannot be undone.`)) return;
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
@@ -231,7 +230,7 @@ export function AdminDashboard() {
       setActionSuccess(data.message || `User "${username}" was deleted.`);
       fetchDashboardData();
     } catch (err: any) {
-      alert(err.message || 'Error deleting user.');
+      notify.error(err.message || 'Error deleting user.');
     }
   };
 

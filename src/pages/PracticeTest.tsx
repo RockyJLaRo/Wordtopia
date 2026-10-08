@@ -6,7 +6,6 @@ import { playCorrectSound, playWinSound, playIncorrectSound } from '../utils/aud
 import { haptic } from '../utils/haptics';
 import confetti from 'canvas-confetti';
 import { Link } from 'react-router-dom';
-import { jsPDF } from 'jspdf';
 import {
   Printer,
   RotateCcw,
@@ -23,6 +22,8 @@ import {
   Download,
   FileText,
   X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { VocabWord } from '../types';
 
@@ -74,7 +75,8 @@ export function PracticeTest() {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printIncludeAnswers, setPrintIncludeAnswers] = useState(false);
   const [printIncludeWordBank, setPrintIncludeWordBank] = useState(true);
-  const [previewFitPage, setPreviewFitPage] = useState(true);
+  const [previewZoom, setPreviewZoom] = useState<number>(85);
+  const [isFitPage, setIsFitPage] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -263,9 +265,10 @@ export function PracticeTest() {
   const [printStatus, setPrintStatus] = useState<string | null>(null);
 
   // Generate authentic single-page PDF assessment
-  const generateSinglePagePDF = (includeAnswers = printIncludeAnswers, includeWordBank = printIncludeWordBank) => {
+  const generateSinglePagePDF = async (includeAnswers = printIncludeAnswers, includeWordBank = printIncludeWordBank) => {
     try {
       setPrintStatus('Generating single-page PDF...');
+      const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'pt',
@@ -927,30 +930,73 @@ export function PracticeTest() {
                   <span>Include Answers (Key)</span>
                 </label>
 
-                {/* View Scaling Toggle */}
-                <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-bold">
+                {/* View Scaling & Zoom Controls */}
+                <div className="flex items-center gap-1.5 bg-slate-200/80 p-1 rounded-xl text-xs font-bold">
+                  <span className="text-[11px] text-slate-500 font-black pl-1 hidden sm:inline">Scale:</span>
                   <button
                     type="button"
-                    onClick={() => setPreviewFitPage(true)}
-                    className={`px-2 py-0.5 rounded-md transition-all ${
-                      previewFitPage
-                        ? 'bg-white text-sky-800 shadow-2xs font-black'
-                        : 'text-slate-600 hover:text-slate-900'
+                    onClick={() => {
+                      setIsFitPage(true);
+                      setPreviewZoom(shuffledQuestions.length > 14 ? 75 : shuffledQuestions.length > 9 ? 85 : 92);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all ${
+                      isFitPage
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
                     }`}
                   >
                     Fit Sheet
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewFitPage(false)}
-                    className={`px-2 py-0.5 rounded-md transition-all ${
-                      !previewFitPage
-                        ? 'bg-white text-sky-800 shadow-2xs font-black'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    100% Size
-                  </button>
+
+                  {[
+                    { label: '75%', value: 75 },
+                    { label: '100%', value: 100 },
+                    { label: '125%', value: 125 },
+                  ].map((z) => (
+                    <button
+                      key={z.value}
+                      type="button"
+                      onClick={() => {
+                        setIsFitPage(false);
+                        setPreviewZoom(z.value);
+                      }}
+                      className={`px-2 py-1 rounded-lg text-xs font-black transition-all ${
+                        !isFitPage && previewZoom === z.value
+                          ? 'bg-sky-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
+                      }`}
+                    >
+                      {z.label}
+                    </button>
+                  ))}
+
+                  <div className="flex items-center border-l border-slate-300 pl-1.5 ml-0.5 gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsFitPage(false);
+                        setPreviewZoom((z) => Math.max(50, z - 10));
+                      }}
+                      className="p-1 hover:bg-slate-300/60 rounded text-slate-600"
+                      title="Zoom Out"
+                    >
+                      <ZoomOut size={13} />
+                    </button>
+                    <span className="text-[10px] font-black text-slate-600 w-8 text-center">
+                      {isFitPage ? 'Auto' : `${previewZoom}%`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsFitPage(false);
+                        setPreviewZoom((z) => Math.min(150, z + 10));
+                      }}
+                      className="p-1 hover:bg-slate-300/60 rounded text-slate-600"
+                      title="Zoom In"
+                    >
+                      <ZoomIn size={13} />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -976,54 +1022,84 @@ export function PracticeTest() {
             </div>
 
             {/* Live Paper Document Preview */}
-            <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-200 flex justify-center items-start">
+            <div className="p-4 sm:p-6 overflow-auto flex-1 bg-slate-200/90 flex justify-center items-start">
               <div
                 style={{
-                  transform: previewFitPage ? 'scale(0.92)' : 'none',
+                  transform: isFitPage
+                    ? shuffledQuestions.length > 14
+                      ? 'scale(0.80)'
+                      : shuffledQuestions.length > 9
+                      ? 'scale(0.86)'
+                      : 'scale(0.92)'
+                    : `scale(${previewZoom / 100})`,
                   transformOrigin: 'top center',
+                  width: '8.5in',
+                  maxWidth: '100%',
+                  minHeight: '11in',
+                  boxShadow: '0 10px 30px -5px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.1)',
                 }}
-                className={`bg-white w-full max-w-xl p-6 sm:p-8 rounded-xl shadow-xl border border-slate-300 font-serif text-slate-800 transition-all ${
-                  shuffledQuestions.length > 14
-                    ? 'text-[11px] leading-tight'
-                    : shuffledQuestions.length > 9
-                    ? 'text-xs leading-snug'
-                    : 'text-sm leading-normal'
+                className={`bg-white rounded-md font-serif text-slate-900 transition-transform duration-150 flex flex-col justify-between ${
+                  shuffledQuestions.length > 18
+                    ? 'p-4 sm:p-5'
+                    : shuffledQuestions.length > 12
+                    ? 'p-5 sm:p-7'
+                    : 'p-6 sm:p-9'
                 }`}
               >
-                <div className="text-center border-b-2 border-slate-800 pb-2.5 mb-3">
-                  <h2 className="text-base sm:text-lg font-black tracking-tight">{testTitle}</h2>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-sans font-bold">
-                    Wordtopia Assessment • Single Page
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center text-xs font-sans font-bold border-b border-slate-200 pb-2 mb-3 gap-2">
-                  <div>Name: <span className="underline decoration-slate-400 font-normal">{studentName || '______________________'}</span></div>
-                  <div>Date: <span className="underline decoration-slate-400 font-normal">______________</span></div>
-                  <div>Score: <span className="underline decoration-slate-400 font-normal">______ / {shuffledQuestions.length}</span></div>
-                </div>
-
-                {printIncludeWordBank && wordBankList.length > 0 && (
-                  <div className="bg-slate-50 border border-slate-300 rounded-lg p-2 mb-3 text-center font-sans text-xs">
-                    <span className="font-bold text-slate-600 mr-2">WORD BANK:</span>
-                    <span className="text-slate-800 font-semibold">{wordBankList.join('   •   ')}</span>
+                <div>
+                  <div className="text-center border-b-2 border-slate-800 pb-2.5 mb-3">
+                    <h2 className="text-base sm:text-lg font-black tracking-tight">{testTitle}</h2>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-sans font-bold">
+                      Wordtopia Assessment • Single Page
+                    </p>
                   </div>
-                )}
 
-                <p className="italic text-[10px] sm:text-[11px] text-slate-500 mb-3 font-sans">
-                  Directions: Read each definition carefully. Write the correct vocabulary word on the blank line provided.
-                </p>
+                  <div className="flex justify-between items-center text-xs font-sans font-bold border-b border-slate-200 pb-2 mb-3 gap-2">
+                    <div>Name: <span className="underline decoration-slate-400 font-normal">{studentName || '______________________'}</span></div>
+                    <div>Date: <span className="underline decoration-slate-400 font-normal">______________</span></div>
+                    <div>Score: <span className="underline decoration-slate-400 font-normal">______ / {shuffledQuestions.length}</span></div>
+                  </div>
 
-                <div className={`font-sans ${shuffledQuestions.length > 14 ? 'space-y-1.5' : shuffledQuestions.length > 9 ? 'space-y-2.5' : 'space-y-3.5'}`}>
-                  {shuffledQuestions.map((q, idx) => (
-                    <div key={q.id} className="flex items-baseline gap-2">
-                      <span className="font-bold w-4 shrink-0">{idx + 1}.</span>
-                      <span className="inline-block border-b border-slate-800 min-w-[110px] sm:min-w-[130px] text-sky-800 font-bold px-1 text-center shrink-0">
-                        {printIncludeAnswers ? q.word : (answers[q.id] || '\u00A0')}
-                      </span>
-                      <span className="text-slate-700 leading-snug">{q.definition}</span>
+                  {printIncludeWordBank && wordBankList.length > 0 && (
+                    <div className="bg-slate-50 border border-slate-300 rounded-lg p-2 mb-3 text-center font-sans text-xs">
+                      <span className="font-bold text-slate-600 mr-2">WORD BANK:</span>
+                      <span className="text-slate-800 font-semibold">{wordBankList.join('   •   ')}</span>
                     </div>
-                  ))}
+                  )}
+
+                  <p className="italic text-[10px] sm:text-[11px] text-slate-500 mb-3 font-sans">
+                    Directions: Read each definition carefully. Write the correct vocabulary word on the blank line provided.
+                  </p>
+
+                  <div
+                    className={`font-sans ${
+                      shuffledQuestions.length > 18
+                        ? 'space-y-1 text-[10.5px]'
+                        : shuffledQuestions.length > 12
+                        ? 'space-y-2 text-xs'
+                        : shuffledQuestions.length > 7
+                        ? 'space-y-3 text-xs sm:text-sm'
+                        : 'space-y-4 text-sm'
+                    }`}
+                  >
+                    {shuffledQuestions.map((q, idx) => (
+                      <div key={q.id} className="flex items-baseline gap-2">
+                        <span className="font-bold w-4 sm:w-5 shrink-0">{idx + 1}.</span>
+                        <span
+                          className={`inline-block border-b-2 border-slate-800 ${
+                            shuffledQuestions.length > 14 ? 'min-w-[110px]' : 'min-w-[130px]'
+                          } text-sky-800 font-bold px-1 text-center shrink-0`}
+                        >
+                          {printIncludeAnswers ? q.word : (answers[q.id] || '\u00A0')}
+                        </span>
+                        <span className="text-slate-700 leading-snug">{q.definition}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-200 text-center font-sans text-[10px] text-slate-400">
+                  Wordtopia Vocabulary Learning Platform • Page 1 of 1
                 </div>
               </div>
             </div>
@@ -1051,11 +1127,23 @@ export function PracticeTest() {
         <p className="italic text-[11px] text-slate-700 mb-3 font-sans">
           Directions: Read each definition carefully. Write the correct vocabulary word on the blank line provided.
         </p>
-        <div className={`space-y-${shuffledQuestions.length > 14 ? '2' : '3'} font-sans text-xs`}>
+        <div
+          className={`font-sans text-xs ${
+            shuffledQuestions.length > 14
+              ? 'space-y-1.5'
+              : shuffledQuestions.length > 9
+              ? 'space-y-2.5'
+              : 'space-y-3.5'
+          }`}
+        >
           {shuffledQuestions.map((q, idx) => (
             <div key={q.id} className="flex items-baseline gap-2">
               <span className="font-bold w-5">{idx + 1}.</span>
-              <span className="inline-block border-b border-black min-w-[130px] font-bold text-center">
+              <span
+                className={`inline-block border-b-2 border-black ${
+                  shuffledQuestions.length > 14 ? 'min-w-[110px]' : 'min-w-[130px]'
+                } font-bold text-center`}
+              >
                 {printIncludeAnswers ? q.word : '\u00A0'}
               </span>
               <span className="leading-snug">{q.definition}</span>

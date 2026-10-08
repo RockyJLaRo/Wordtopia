@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/utils';
 import { useProgressStore } from '../store/useProgressStore';
-import { createAvatar64Composite, drawAvatarToCanvas } from '../utils/avatarRenderer';
+import { createAvatar64Composite, drawAvatarToCanvas, getCompositeCacheKey } from '../utils/avatarRenderer';
 import { SpriteLayer } from '../data/avatarSprites';
 
 export interface PixelAvatarProps {
@@ -46,6 +46,7 @@ export const PixelAvatar: React.FC<PixelAvatarProps> = ({
   const activeStyle = propStyle || (storeWardrobeStyle === 'boy' ? 'boy' : 'girl');
 
   const displaySize = Math.round(size * zoom);
+  const cacheKey = getCompositeCacheKey(activeAvatarId, activeEquipped, activeStyle);
 
   useEffect(() => {
     let isCancelled = false;
@@ -72,7 +73,7 @@ export const PixelAvatar: React.FC<PixelAvatarProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [activeAvatarId, JSON.stringify(activeEquipped), activeStyle, displaySize]);
+  }, [cacheKey, displaySize]);
 
   return (
     <div

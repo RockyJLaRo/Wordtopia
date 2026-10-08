@@ -81,7 +81,7 @@ export function SpeedChallenge() {
     timeMs: number;
   } | null>(null);
 
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const questionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 

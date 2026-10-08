@@ -11,6 +11,7 @@ import { GameGraphic } from '../components/GameGraphic';
 import { SoundTestPad } from '../components/SoundControls';
 import { PWAInstallButton } from '../components/PWAInstallButton';
 import { Link } from 'react-router-dom';
+import { notify } from '../components/NotificationToast';
 
 const GRADES: GradeLevel[] = [
   'Kindergarten', '1st Grade', '2nd Grade', '3rd Grade', '4th Grade', 
@@ -67,18 +68,17 @@ export function Settings() {
   };
 
   const handleReset = () => {
-    if (window.confirm('Are you sure? This will erase your points, achievements, streaks, and mastery progress.')) {
-      resetProgress();
-      resetMastery();
-      alert('Progress has been reset.');
-    }
+    resetProgress();
+    resetMastery();
+    notify.success('Progress and mastery have been successfully reset.');
   };
 
   const attemptUnlock = () => {
     if (parseInt(teacherPin) === num1 * num2) {
       setUnlocked(true);
+      notify.success('Teacher controls unlocked!');
     } else {
-      alert('Incorrect answer.');
+      notify.error('Incorrect answer. Please solve the math problem to unlock.');
       setTeacherPin('');
       generateProblem();
     }
@@ -88,13 +88,12 @@ export function Settings() {
     setSyncing(true);
     await syncProgressWithCloud();
     setTimeout(() => setSyncing(false), 500);
+    notify.success('Progress synced with cloud.');
   };
 
   const handleDeleteMyAccount = async () => {
-    if (confirm('Are you sure you want to permanently delete your account and all associated cloud data? This cannot be undone.')) {
-      const res = await deleteAccount();
-      alert(res.message);
-    }
+    const res = await deleteAccount();
+    notify.info(res.message);
   };
 
   const masteredCount = words.filter(w => w.masteryLevel === 'Mastered').length;

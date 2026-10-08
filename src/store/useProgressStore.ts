@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PlayerProgress } from '../types';
-import { SPRITE_ITEMS } from '../data/avatarSprites';
+import { SPRITE_ITEMS, SpriteLayer } from '../data/avatarSprites';
 import { soundManager } from '../utils/soundManager';
+import { normalizeLayerName } from '../utils/avatarRenderer';
 
 interface ProgressState extends PlayerProgress {
-  
+  isAvatarExportOpen?: boolean;
+  setAvatarExportOpen: (open: boolean) => void;
   addCoins: (amount: number, reason?: string) => void;
   spendCoins: (amount: number, reason?: string) => boolean;
   addStars: (amount: number) => void;
@@ -198,13 +200,44 @@ export const useProgressStore = create<ProgressState>()(
         inventory: state.inventory.includes(itemId) ? state.inventory : [...state.inventory, itemId]
       })),
       setWardrobeStyle: (style) => set({ wardrobeStyle: style }),
-      equipItem: (category, itemId) => set((state) => {
+      isAvatarExportOpen: false,
+      setAvatarExportOpen: (open) => set({ isAvatarExportOpen: open }),
+      equipItem: (slotOrCategory, itemId) => set((state) => {
         const next = { ...state.equipped };
-        if (!itemId || next[category] === itemId) {
-          delete next[category];
+
+        // Determine canonical SpriteLayer
+        let layer: SpriteLayer | string = slotOrCategory;
+        if (itemId && SPRITE_ITEMS[itemId]) {
+          layer = SPRITE_ITEMS[itemId].layer;
+        } else {
+          const normalized = normalizeLayerName(slotOrCategory);
+          if (normalized) layer = normalized;
+        }
+
+        // All aliases for this layer so we unequip previous duplicates cleanly
+        const aliases: Record<string, string[]> = {
+          HEAD: ['HEAD', 'head', 'Headwear', 'headwear', 'hat', 'Hat', 'hats', 'Hats', 'horns', 'Horns', 'crown', 'Crown'],
+          FACE: ['FACE', 'face', 'Glasses', 'glasses'],
+          NECK: ['NECK', 'neck', 'Scarf', 'scarf', 'Collar', 'collar', 'Necklace', 'necklace'],
+          BODY: ['BODY', 'body', 'Outfit', 'outfit', 'Outfits', 'clothing', 'Clothing', 'shirt', 'Shirt', 'dress', 'Dress'],
+          BACK: ['BACK', 'back', 'Wings', 'wings', 'Cape', 'cape', 'Backpack', 'backpack', 'Wings & Back'],
+          TAIL: ['TAIL', 'tail', 'Tails'],
+          HAND: ['HAND', 'hand', 'Handheld', 'handheld'],
+          TEXTURE: ['TEXTURE', 'texture', 'Aura', 'aura', 'Skin', 'skin', 'Textures & Auras'],
+        };
+
+        const keysToCheck = aliases[layer] || [layer, layer.toLowerCase(), slotOrCategory];
+        const isCurrentlyEquipped = keysToCheck.some((k) => next[k] === itemId);
+
+        // Remove all variations
+        for (const k of keysToCheck) {
+          delete next[k];
+        }
+
+        if (isCurrentlyEquipped || !itemId) {
           soundManager.play('unequip');
         } else {
-          next[category] = itemId;
+          next[layer] = itemId;
           soundManager.play('equip');
         }
         return { equipped: next };
@@ -218,6 +251,21 @@ export const useProgressStore = create<ProgressState>()(
         for (const itemId of items) {
           const item = SPRITE_ITEMS[itemId];
           if (item) {
+            // Clean up any alias for this item's layer
+            const aliases: Record<string, string[]> = {
+              HEAD: ['HEAD', 'head', 'Headwear', 'headwear'],
+              FACE: ['FACE', 'face', 'Glasses', 'glasses'],
+              NECK: ['NECK', 'neck', 'Scarf', 'scarf', 'Collar', 'collar'],
+              BODY: ['BODY', 'body', 'Outfit', 'outfit', 'Clothing', 'clothing'],
+              BACK: ['BACK', 'back', 'Wings', 'wings'],
+              TAIL: ['TAIL', 'tail'],
+              HAND: ['HAND', 'hand'],
+              TEXTURE: ['TEXTURE', 'texture', 'Aura', 'aura'],
+            };
+            const toClear = aliases[item.layer] || [item.layer, item.layer.toLowerCase()];
+            for (const k of toClear) {
+              delete next[k];
+            }
             next[item.layer] = itemId;
           }
         }

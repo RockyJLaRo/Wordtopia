@@ -162,22 +162,34 @@ export const useVocabStore = create<VocabState>()(
       },
 
       loadVocabFromUrl: async (_force = false) => {
-        set({ isLoading: true, error: null });
+        const initialState = get();
+        const hasExistingWords = initialState.allWords && initialState.allWords.length > 0;
+        
+        // Only show full loading spinner if we don't already have persistent words cached
+        if (!hasExistingWords) {
+          set({ isLoading: true, error: null });
+        }
+
         let text = '';
         try {
-          // 1. Try remote fetch (service worker caches this via NetworkFirst)
+          // 1. Try remote fetch with a 2.5-second timeout (fallback quickly to local precache if offline/slow)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2500);
+
           const response = await fetch('https://rockyjlaro.github.io/Vocab.txt', {
             cache: _force ? 'reload' : 'default',
+            signal: controller.signal,
           });
+          clearTimeout(timeoutId);
+
           if (response.ok) {
             text = await response.text();
           } else {
             throw new Error(`Remote responded with status ${response.status}`);
           }
         } catch (remoteErr) {
-          console.warn('[useVocabStore] Remote vocab fetch failed or offline, falling back to cached / local Vocab.txt:', remoteErr);
+          // Fast local fallback: local precached /Vocab.txt
           try {
-            // 2. Fallback to local /Vocab.txt (precached and runtime-cached by service worker)
             const localResponse = await fetch('/Vocab.txt');
             if (localResponse.ok) {
               text = await localResponse.text();

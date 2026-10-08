@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useProgressStore } from '../store/useProgressStore';
 import { getStoreItemsForAvatar } from '../data/shopItems';
-import { AVATARS, SPRITE_ITEMS } from '../data/avatarSprites';
+import { AVATARS, SPRITE_ITEMS, SpriteLayer } from '../data/avatarSprites';
 import { PixelAvatar } from '../components/PixelAvatar';
 import { ShopItem } from '../types';
+import { resolveEquippedItemForLayer, normalizeLayerName } from '../utils/avatarRenderer';
 import {
   Coins,
   Sparkles,
@@ -121,11 +122,11 @@ export function Shop() {
     if (item.items && Array.isArray(item.items) && item.items.length > 0) {
       return item.items.every((it) => {
         const meta = SPRITE_ITEMS[it];
-        return meta && equipped[meta.layer] === it;
+        return meta && resolveEquippedItemForLayer(meta.layer, equipped) === it;
       });
     }
-    const slot = item.layer || item.category;
-    return equipped[slot] === item.id;
+    const layer = (item.layer as SpriteLayer) || normalizeLayerName(item.category) || 'BODY';
+    return resolveEquippedItemForLayer(layer, equipped) === item.id;
   };
 
   // Unique categories list
@@ -276,7 +277,8 @@ export function Shop() {
     } else if (item.items && Array.isArray(item.items) && item.items.length > 0) {
       equipCombo(item.items);
     } else {
-      equipItem(item.category, item.id);
+      const slot = item.layer || item.category;
+      equipItem(slot, item.id);
     }
   };
 
