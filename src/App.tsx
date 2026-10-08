@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy as reactLazy, Suspense, useEffect, type ComponentType } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
@@ -6,11 +6,18 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationToastContainer } from './components/NotificationToast';
 import { useVocabStore } from './store/useVocabStore';
 import { useProgressStore } from './store/useProgressStore';
-import { useAuthStore } from './store/useAuthStore';
-import { AuthModal } from './components/AuthModal';
+import { useAuthStore, startCloudProgressSync } from './store/useAuthStore';
+import { useSettingsStore } from './store/useSettingsStore';
 import { SHOP_ITEMS } from './data/shopItems';
 import { initInteractionDiagnostics } from './services/telemetry';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 import { Sparkles } from 'lucide-react';
+
+// React.lazy with automatic recovery from stale/failed chunk downloads.
+const lazy = <T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) =>
+  reactLazy(lazyWithRetry(factory));
+
+const AuthModal = lazy(() => import('./components/AuthModal').then((m) => ({ default: m.AuthModal })));
 
 // Code-split all route pages and games for fast initial page load (< 200kB initial chunk)
 const Study = lazy(() => import('./pages/Study').then((m) => ({ default: m.Study })));
@@ -51,14 +58,28 @@ function PageLoadingFallback() {
   );
 }
 
+// Runs work when the browser is idle so it never competes with the first render.
+function whenIdle(cb: () => void, timeout = 3000) {
+  const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
+  if (w.requestIdleCallback) w.requestIdleCallback(cb, { timeout });
+  else setTimeout(cb, 1200);
+}
+
 export default function App() {
-  const { loadVocabFromUrl, allWords, availableLessons } = useVocabStore();
-  const { addCoins } = useProgressStore();
-  const { checkAuth } = useAuthStore();
+  const isAuthModalOpen = useAuthStore((s) => s.isAuthModalOpen);
+  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
+
+  // The in-game "Reduce Motion" setting tones down every CSS animation, not just confetti.
+  useEffect(() => {
+    document.documentElement.classList.toggle('reduce-motion', reduceMotion);
+  }, [reduceMotion]);
 
   useEffect(() => {
-    // Check session on load
-    checkAuth();
+    // Check session on load (deferred: guest play never waits on the network)
+    whenIdle(() => useAuthStore.getState().checkAuth());
+
+    // Keep signed-in players' cloud save up to date
+    const stopCloudSync = startCloudProgressSync();
 
     // Start interaction usability telemetry
     initInteractionDiagnostics();
@@ -75,23 +96,40 @@ export default function App() {
     });
     if (refund > 0) {
       useProgressStore.setState({ inventory: newInventory });
-      addCoins(refund, 'Refund for Legacy Items');
+      useProgressStore.getState().addCoins(refund, 'Refund for Legacy Items');
     }
+    return stopCloudSync;
   }, []);
 
   useEffect(() => {
-    // Load vocab on startup if not yet loaded or if Week #2 hasn't been fetched yet
-    const hasWeek2 = availableLessons?.includes('Week #2') || allWords?.some((w) => w.lesson === 'Week #2');
-    if (!allWords || allWords.length === 0 || !hasWeek2) {
-      loadVocabFromUrl(true);
+    const vocab = useVocabStore.getState();
+    if (!vocab.allWords || vocab.allWords.length === 0) {
+      // First launch (or wiped data): fetch immediately so games have words.
+      vocab.loadVocabFromUrl(true);
+    } else {
+      // Returning player: play instantly from saved words, then quietly check for
+      // newly published lessons in the background.
+      whenIdle(() => useVocabStore.getState().loadVocabFromUrl(false));
     }
+
+    // If the first load failed while offline, retry automatically once a connection returns.
+    const handleOnline = () => {
+      const state = useVocabStore.getState();
+      if (state.error || state.allWords.length === 0) state.loadVocabFromUrl(true);
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
   }, []);
 
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <NotificationToastContainer />
-        <AuthModal />
+        {isAuthModalOpen && (
+          <Suspense fallback={null}>
+            <AuthModal />
+          </Suspense>
+        )}
         <Suspense fallback={<PageLoadingFallback />}>
           <Routes>
             {/* Admin Dashboard: Separate Standalone Suite */}

@@ -3,23 +3,31 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { initGlobalHapticFeedback } from './utils/haptics';
-import { registerSW } from 'virtual:pwa-register';
+import { initServiceWorker } from './services/pwaUpdate';
+import { logApplicationError } from './services/telemetry';
+import { isChunkLoadError } from './utils/lazyWithRetry';
 
 initGlobalHapticFeedback();
 
-// Register service worker with automatic cache updates and offline readiness
-const updateSW = registerSW({
-  onNeedRefresh() {
-    console.log('[PWA] New content available, updating service worker...');
-    updateSW(true);
-  },
-  onOfflineReady() {
-    console.log('[PWA] Wordtopia is ready for offline play! All assets & vocabulary cached.');
-  },
+// Errors outside React's render tree (timers, promises, event handlers) are logged instead of
+// silently disappearing. Chunk download failures are connectivity issues, not bugs.
+window.addEventListener('unhandledrejection', (event) => {
+  if (!isChunkLoadError(event.reason)) {
+    logApplicationError(event.reason instanceof Error ? event.reason : String(event.reason), 'unhandledrejection');
+  }
+});
+window.addEventListener('error', (event) => {
+  if (event.error && !isChunkLoadError(event.error)) logApplicationError(event.error, 'window.onerror');
 });
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+const rootElement = document.getElementById('root');
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}
+
+// Register the service worker after the first render so it never competes with startup work.
+initServiceWorker();

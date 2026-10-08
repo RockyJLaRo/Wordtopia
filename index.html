@@ -2,97 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script>
-      // Runtime Environment: HMR is disabled in this environment.
-      // Suppress Vite HMR WebSocket connection failure messages so they don't trigger platform error overlays.
-      (function() {
-        const isViteMessage = (item) => {
-          if (!item) return false;
-          const str = typeof item === 'string'
-            ? item
-            : item.message
-            ? String(item.message)
-            : item.stack
-            ? String(item.stack)
-            : String(item);
-          return (
-            str.includes('[vite]') ||
-            str.includes('vite-hmr') ||
-            str.includes('WebSocket') ||
-            str.includes('websocket')
-          );
-        };
-
-        const _origError = console.error;
-        console.error = function(...args) {
-          if (args.some(isViteMessage)) return;
-          _origError.apply(console, args);
-        };
-
-        const _origWarn = console.warn;
-        console.warn = function(...args) {
-          if (args.some(isViteMessage)) return;
-          _origWarn.apply(console, args);
-        };
-
-        window.addEventListener('error', function(event) {
-          if (isViteMessage(event.message) || isViteMessage(event.error) || isViteMessage(event.filename)) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-          }
-        }, true);
-
-        window.addEventListener('unhandledrejection', function(event) {
-          if (isViteMessage(event.reason)) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-          }
-        }, true);
-
-        if (typeof window.WebSocket !== 'undefined') {
-          const OrigWS = window.WebSocket;
-          window.WebSocket = function(url, protocols) {
-            const proto = Array.isArray(protocols)
-              ? protocols.join(' ')
-              : typeof protocols === 'string'
-              ? protocols
-              : '';
-            const urlStr = String(url);
-
-            const isVite =
-              proto.includes('vite-hmr') ||
-              proto.includes('vite-ping') ||
-              urlStr.includes('token=') ||
-              urlStr.includes('@vite');
-
-            if (isVite) {
-              const target = new EventTarget();
-              target.url = urlStr;
-              target.readyState = 1;
-              target.OPEN = 1;
-              target.CLOSED = 3;
-              target.CLOSING = 2;
-              target.CONNECTING = 0;
-              target.send = function() {};
-              target.close = function() { target.readyState = 3; };
-              setTimeout(() => {
-                try {
-                  target.dispatchEvent(new Event('open'));
-                } catch {}
-              }, 10);
-              return target;
-            }
-            return new OrigWS(url, protocols);
-          };
-          window.WebSocket.prototype = OrigWS.prototype;
-          window.WebSocket.CONNECTING = 0;
-          window.WebSocket.OPEN = 1;
-          window.WebSocket.CLOSING = 2;
-          window.WebSocket.CLOSED = 3;
-        }
-      })();
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>VocabCraft</title>
     <meta name="description" content="A block-world vocabulary adventure game for kids." />
     <meta property="og:title" content="VocabCraft" />
@@ -124,10 +34,42 @@
       .rotate-y-180 {
         transform: rotateY(180deg);
       }
+      html,
+      body {
+        background: #e0f2fe;
+      }
+      .boot-splash {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 800;
+        color: #0369a1;
+      }
+      .boot-splash__icon {
+        font-size: 48px;
+        animation: boot-bob 1.2s ease-in-out infinite;
+      }
+      @keyframes boot-bob {
+        50% {
+          transform: translateY(-8px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-splash__icon {
+          animation: none;
+        }
+      }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Lightweight boot screen: visible instantly while the game bundle downloads; React replaces it. -->
+    <div id="root"><div class="boot-splash" role="status" aria-live="polite"><div class="boot-splash__icon">📚</div><p>Loading Wordtopia…</p></div></div>
+    <noscript><p style="padding:24px;font-family:sans-serif;text-align:center">Wordtopia needs JavaScript turned on to play.</p></noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -9,6 +9,7 @@ import { MascotAvatar } from '../components/MascotAvatar';
 import { LessonSelector } from '../components/LessonSelector';
 import { playMascotSound, playClickSound } from '../utils/audio';
 import { notify } from '../components/NotificationToast';
+import { localDateKey } from '../utils/dateKey';
 
 function MascotDisplay() {
   const {
@@ -233,7 +234,7 @@ function MascotDisplay() {
 
 function DailyStreakBanner() {
   const { dailyStreak, lastClaimDate, claimDailyReward } = useProgressStore();
-  const today = new Date().toLocaleDateString('en-CA');
+  const today = localDateKey();
   const canClaim = lastClaimDate !== today;
 
   if (!canClaim && dailyStreak === 0) return null;

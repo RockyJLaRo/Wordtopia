@@ -65,6 +65,8 @@ export const PixelAvatar: React.FC<PixelAvatarProps> = ({
         setIsLoaded(true);
       } catch (err) {
         console.error('[PixelAvatar] Render failure:', err);
+        // Hide the spinner rather than leaving a loader spinning forever.
+        if (!isCancelled) setIsLoaded(true);
       }
     }
 

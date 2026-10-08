@@ -3,13 +3,14 @@ import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { getWeightedRandomWords, getDistractors, shuffleArray } from '../utils/gameUtils';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { Link } from 'react-router-dom';
 import { playCorrectSound, playIncorrectSound, playWinSound } from '../utils/audio';
 import { haptic } from '../utils/haptics';
 import { getGradeConfig } from '../utils/gradeConfig';
 import { Zap, Timer, Brain, Award, ArrowRight } from 'lucide-react';
 import { GradeLevel } from '../types';
+import { useGameTimeouts, useLatest } from '../hooks/useGameTimers';
 
 const getSpeedConfig = (grade: GradeLevel) => {
   switch (grade) {
@@ -69,9 +70,17 @@ export function SpeedChallenge() {
   const [bestStreak, setBestStreak] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
 
-  // Current question tracking
-  const [startTime, setStartTime] = useState<number>(0);
-  const [timeRemainingPercent, setTimeRemainingPercent] = useState(100);
+  // Current question tracking. The countdown bar is a CSS transform animation (runs on the
+  // compositor) instead of a requestAnimationFrame loop that re-rendered the whole game every
+  // frame; `questionKey` restarts it for each question.
+  const startTimeRef = useRef(0);
+  const deadlineRef = useRef(0);
+  const remainingOnPauseRef = useRef<number | null>(null);
+  const hiddenAtRef = useRef(0);
+  const [questionKey, setQuestionKey] = useState(0);
+  const [isTimerPaused, setIsTimerPaused] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const [isNewPB, setIsNewPB] = useState(false);
   
   const [feedback, setFeedback] = useState<{
     correct: boolean;
@@ -81,23 +90,66 @@ export function SpeedChallenge() {
     timeMs: number;
   } | null>(null);
 
-  const animationRef = useRef<number | undefined>(undefined);
-  const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const questionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeouts = useGameTimeouts();
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const questionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearQuestionTimer = () => {
+    if (questionTimeoutRef.current) clearTimeout(questionTimeoutRef.current);
+    questionTimeoutRef.current = null;
+  };
+
+  // Timers call the latest handlers so they see current state (current word, game state).
+  const handleTimeoutRef = useLatest(() => handleTimeout());
+  const advanceRef = useLatest(() => advanceToNextQuestion());
+
+  const startQuestionTimer = (ms: number) => {
+    clearQuestionTimer();
+    deadlineRef.current = performance.now() + ms;
+    questionTimeoutRef.current = timeouts.set(() => {
+      questionTimeoutRef.current = null;
+      handleTimeoutRef.current();
+    }, ms);
+  };
 
   useEffect(() => {
     if (words.length >= 2 && currentWord === null) {
       loadNextQuestion(0);
     }
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-      if (questionTimeoutRef.current) clearTimeout(questionTimeoutRef.current);
-    };
   }, [words.length, currentWord]);
 
+  // Pause the countdown while the app is in the background (switching apps, screen lock)
+  // instead of counting a timeout the child never saw.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (gameStateRef.current !== 'playing' || isZenMode) return;
+      if (document.visibilityState === 'hidden') {
+        if (remainingOnPauseRef.current !== null) return;
+        hiddenAtRef.current = performance.now();
+        remainingOnPauseRef.current = Math.max(0, deadlineRef.current - hiddenAtRef.current);
+        clearQuestionTimer();
+        setIsTimerPaused(true);
+      } else if (remainingOnPauseRef.current !== null) {
+        startTimeRef.current += performance.now() - hiddenAtRef.current;
+        startQuestionTimer(remainingOnPauseRef.current);
+        remainingOnPauseRef.current = null;
+        setIsTimerPaused(false);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [isZenMode]);
+
+  const scheduleAdvance = (ms: number) => {
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    advanceTimerRef.current = timeouts.set(() => {
+      advanceTimerRef.current = null;
+      advanceRef.current();
+    }, ms);
+  };
+
   const advanceToNextQuestion = () => {
-    if (gameState !== 'feedback') return;
+    if (gameStateRef.current !== 'feedback') return;
     if (advanceTimerRef.current) {
       clearTimeout(advanceTimerRef.current);
       advanceTimerRef.current = null;
@@ -115,18 +167,14 @@ export function SpeedChallenge() {
   const handleTimeout = () => {
     if (gameStateRef.current !== 'playing' || !currentWord) return;
     gameStateRef.current = 'feedback';
-    if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    if (questionTimeoutRef.current) {
-      clearTimeout(questionTimeoutRef.current);
-      questionTimeoutRef.current = null;
-    }
+    clearQuestionTimer();
 
     recordPractice(currentWord.id, false);
     recordAnswer(false);
     playIncorrectSound(soundEnabled);
     haptic.error();
     setCurrentStreak(0);
-    setTimeRemainingPercent(0);
+    setTimedOut(true);
 
     setFeedback({
       correct: false,
@@ -137,14 +185,10 @@ export function SpeedChallenge() {
     });
 
     setGameState('feedback');
-
-    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    advanceTimerRef.current = setTimeout(() => {
-      advanceToNextQuestion();
-    }, 2500);
+    scheduleAdvance(2500);
   };
 
-  const loadNextQuestion = (nextCountOverride?: number) => {
+  const loadNextQuestion = (nextCountOverride?: number, zen = isZenMode) => {
     const currentCount = typeof nextCountOverride === 'number' ? nextCountOverride : questionCount;
     if (currentCount >= TOTAL_QUESTIONS) {
       setQuestionCount(TOTAL_QUESTIONS);
@@ -152,56 +196,61 @@ export function SpeedChallenge() {
       return;
     }
 
-    if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    if (questionTimeoutRef.current) clearTimeout(questionTimeoutRef.current);
+    clearQuestionTimer();
+    remainingOnPauseRef.current = null;
 
     const nextWord = getWeightedRandomWords(words, 1)[0];
+    if (!nextWord) return;
     const numOptions = Math.min(words.length - 1, gradeConfig.answerChoices - 1);
     const distractors = getDistractors(words, nextWord, numOptions);
     const allOptions = shuffleArray([...distractors, nextWord]);
-    
+
     const chosenPromptMode = Math.random() > 0.5 ? 'defToWord' : 'wordToDef';
     setPromptMode(chosenPromptMode);
     setCurrentWord(nextWord);
     setOptions(allOptions);
+    gameStateRef.current = 'playing';
     setGameState('playing');
     setFeedback(null);
-    setStartTime(performance.now());
-    setTimeRemainingPercent(100);
+    setTimedOut(false);
+    setIsTimerPaused(false);
+    setQuestionKey((k) => k + 1);
+    startTimeRef.current = performance.now();
 
-    // Timeout fallback only when not in Zen Mode
-    if (!isZenMode) {
-      questionTimeoutRef.current = setTimeout(() => {
-        handleTimeout();
-      }, timeLimitMs);
-      
-      // Smooth progress bar animation
-      if (!reduceMotion) {
-        const start = performance.now();
-        const animate = (now: number) => {
-          const elapsed = now - start;
-          const remaining = Math.max(0, 100 - (elapsed / timeLimitMs) * 100);
-          setTimeRemainingPercent(remaining);
-          if (remaining <= 0) {
-            handleTimeout();
-          } else if (gameState === 'playing') {
-            animationRef.current = requestAnimationFrame(animate);
-          }
-        };
-        animationRef.current = requestAnimationFrame(animate);
-      }
+    // Timeout only when not in Zen Mode
+    if (!zen) {
+      startQuestionTimer(timeLimitMs);
+    }
+  };
+
+  const toggleZenMode = () => {
+    const nextZen = !isZenMode;
+    setIsZenMode(nextZen);
+    // Apply immediately to the current question so a stale timer can't fire in Zen Mode.
+    if (gameStateRef.current === 'playing') {
+      clearQuestionTimer();
+      remainingOnPauseRef.current = null;
+      startTimeRef.current = performance.now();
+      setQuestionKey((k) => k + 1);
+      if (!nextZen) startQuestionTimer(timeLimitMs);
     }
   };
 
   const finishGame = () => {
+    clearQuestionTimer();
+    gameStateRef.current = 'finished';
     setGameState('finished');
     incrementGamesCompleted();
-    
+
     // Add rewards
     addCoins(Math.floor(score / 50));
     addStars(Math.floor(score / 200));
-    
-    if (!speedChallengePB || score > speedChallengePB) {
+
+    // Decide "new personal best" *before* saving the score; comparing afterwards meant the
+    // celebration could never show.
+    const newBest = score > 0 && (!speedChallengePB || score > speedChallengePB);
+    setIsNewPB(newBest);
+    if (newBest) {
       setSpeedChallengePB(score);
     }
 
@@ -213,16 +262,11 @@ export function SpeedChallenge() {
   };
 
   const handleAnswer = (selectedWord: any) => {
-    if (gameStateRef.current !== 'playing') return;
+    if (gameStateRef.current !== 'playing' || !currentWord) return;
     gameStateRef.current = 'feedback';
-    if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    if (questionTimeoutRef.current) {
-      clearTimeout(questionTimeoutRef.current);
-      questionTimeoutRef.current = null;
-    }
+    clearQuestionTimer();
 
-    const endTime = performance.now();
-    const timeMs = endTime - startTime;
+    const timeMs = performance.now() - startTimeRef.current;
     const isCorrect = selectedWord.id === currentWord.id;
 
     recordPractice(currentWord.id, isCorrect, 'recognition');
@@ -273,12 +317,9 @@ export function SpeedChallenge() {
     }
 
     setGameState('feedback');
-    
+
     // Auto-advance with tap-to-skip support
-    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    advanceTimerRef.current = setTimeout(() => {
-      advanceToNextQuestion();
-    }, isCorrect ? 1200 : 2500);
+    scheduleAdvance(isCorrect ? 1200 : 2500);
   };
 
   if (words.length < 2) {
@@ -297,7 +338,6 @@ export function SpeedChallenge() {
   }
 
   if (gameState === 'finished') {
-    const isNewPB = !speedChallengePB || score > speedChallengePB;
     const avgTime = totalCorrect > 0 ? (totalResponseTime / totalCorrect / 1000).toFixed(2) : "0.00";
     const fastestStr = fastestAnswer < 999999 ? (fastestAnswer / 1000).toFixed(2) : "0.00";
     const accuracy = Math.round((totalCorrect / TOTAL_QUESTIONS) * 100);
@@ -360,6 +400,8 @@ export function SpeedChallenge() {
             <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
               <button
                 onClick={() => {
+                  timeouts.clearAll();
+                  setIsNewPB(false);
                   setQuestionCount(0);
                   setScore(0);
                   setTotalCorrect(0);
@@ -401,7 +443,8 @@ export function SpeedChallenge() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setIsZenMode((prev) => !prev)}
+            onClick={toggleZenMode}
+            aria-pressed={isZenMode}
             className={`px-3 py-1 rounded-xl text-xs font-black transition-all ${
               isZenMode
                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
@@ -431,10 +474,22 @@ export function SpeedChallenge() {
       <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-10 border-2 sm:border-4 border-slate-200 shadow-xl w-full relative">
         {/* Speed Bar (only in Sprint Mode) */}
         {!isZenMode && (
-          <div className="absolute top-0 left-0 w-full h-2 sm:h-2.5 bg-slate-100 rounded-t-2xl sm:rounded-t-3xl overflow-hidden">
+          <div
+            className="absolute top-0 left-0 w-full h-2 sm:h-2.5 bg-slate-100 rounded-t-2xl sm:rounded-t-3xl overflow-hidden"
+            role="presentation"
+          >
             <div
-              className="h-full bg-amber-400 transition-all duration-100 ease-linear"
-              style={{ width: `${timeRemainingPercent}%` }}
+              key={questionKey}
+              data-essential-animation
+              className="h-full w-full bg-amber-400 origin-left"
+              style={
+                reduceMotion
+                  ? { transform: timedOut ? 'scaleX(0)' : undefined }
+                  : {
+                      animation: `speed-bar-shrink ${timeLimitMs}ms linear forwards`,
+                      animationPlayState: gameState === 'playing' && !isTimerPaused ? 'running' : 'paused',
+                    }
+              }
             />
           </div>
         )}
@@ -453,7 +508,7 @@ export function SpeedChallenge() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           {options.map((option, idx) => (
             <button
-              key={idx}
+              key={option.id ?? idx}
               disabled={gameState === 'feedback'}
               onClick={() => handleAnswer(option)}
               className={`
@@ -507,10 +562,10 @@ export function SpeedChallenge() {
               <>
                 <div className="text-2xl sm:text-4xl mb-1">Not quite!</div>
                 <div className="text-xs sm:text-base bg-white/20 p-3 sm:p-4 rounded-2xl mt-1 text-center w-full leading-relaxed break-words">
-                  The correct answer was:
+                  {timedOut ? "Time's up! " : ''}The correct answer was:
                   <br />
                   <span className="text-base sm:text-xl mt-1 block font-black">
-                    {currentWord.definition}
+                    {promptMode === 'wordToDef' ? currentWord.definition : currentWord.word}
                   </span>
                 </div>
               </>

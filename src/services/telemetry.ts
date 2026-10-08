@@ -1,13 +1,27 @@
 // Privacy-Conscious Gameplay Analytics & UI Interaction Diagnostics
 
+let memorySessionId: string | null = null;
+
 function getAnonymousSessionId(): string {
-  let sessId = sessionStorage.getItem('vocab_anon_sess');
-  if (!sessId) {
-    sessId = `sess_${Math.random().toString(36).substring(2, 9)}`;
-    sessionStorage.setItem('vocab_anon_sess', sessId);
+  try {
+    let sessId = sessionStorage.getItem('vocab_anon_sess');
+    if (!sessId) {
+      sessId = `sess_${Math.random().toString(36).substring(2, 9)}`;
+      sessionStorage.setItem('vocab_anon_sess', sessId);
+    }
+    return sessId;
+  } catch {
+    memorySessionId ??= `sess_${Math.random().toString(36).substring(2, 9)}`;
+    return memorySessionId;
   }
-  return sessId;
 }
+
+// Diagnostics are aggregated server-side anyway; one report per type+screen per minute is
+// plenty, and avoids a network request (and a server disk write) on every repeated tap.
+const DIAGNOSTIC_THROTTLE_MS = 60_000;
+const lastDiagnosticAt = new Map<string, number>();
+
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
 function getDeviceCategory(): 'mobile' | 'tablet' | 'desktop' {
   const width = window.innerWidth;
@@ -42,10 +56,12 @@ export function trackGameEvent(
       metadata: data?.metadata,
     };
 
-    // Use sendBeacon if available, fallback to fetch
+    if (isOffline()) return;
+    // Use sendBeacon if available, fallback to fetch. The body must be typed as JSON:
+    // a plain string is sent as text/plain, which the server's JSON parser ignores.
     const body = JSON.stringify(payload);
     if (navigator.sendBeacon) {
-      navigator.sendBeacon('/api/analytics/event', body);
+      navigator.sendBeacon('/api/analytics/event', new Blob([body], { type: 'application/json' }));
     } else {
       fetch('/api/analytics/event', {
         method: 'POST',
@@ -67,6 +83,11 @@ export function reportDiagnostic(data: {
   possibleIssue?: string;
 }) {
   try {
+    if (isOffline()) return;
+    const key = `${data.type}|${data.screen}`;
+    const now = Date.now();
+    if (now - (lastDiagnosticAt.get(key) || 0) < DIAGNOSTIC_THROTTLE_MS) return;
+    lastDiagnosticAt.set(key, now);
     fetch('/api/analytics/diagnostics', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -78,8 +99,14 @@ export function reportDiagnostic(data: {
   } catch {}
 }
 
+const loggedErrors = new Set<string>();
+
 export function logApplicationError(error: Error | string, component?: string, game?: string) {
   try {
+    if (isOffline()) return;
+    const dedupeKey = `${typeof error === 'string' ? error : error.message}|${component}`;
+    if (loggedErrors.has(dedupeKey) || loggedErrors.size > 50) return;
+    loggedErrors.add(dedupeKey);
     const message = typeof error === 'string' ? error : error.message;
     const errorType = typeof error === 'string' ? 'AppError' : error.name;
 
@@ -100,8 +127,11 @@ export function logApplicationError(error: Error | string, component?: string, g
 }
 
 // Global Interaction Diagnostics Listener (Monitors rapid non-interactive taps & disabled clicks)
+let diagnosticsStarted = false;
+
 export function initInteractionDiagnostics() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || diagnosticsStarted) return;
+  diagnosticsStarted = true;
 
   let tapHistory: { x: number; y: number; time: number }[] = [];
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Send, Sparkles, CheckCircle2, MessageSquare, AlertCircle, Camera } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useVocabStore } from '../store/useVocabStore';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { GameGraphic } from './GameGraphic';
 
 interface FeedbackModalProps {

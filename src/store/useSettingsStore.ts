@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameSettings, GradeLevel } from '../types';
+import { createSafeJSONStorage, finiteNumber, isPlainObject } from '../utils/safeStorage';
+
+const GRADE_LEVELS: GradeLevel[] = [
+  'Kindergarten', '1st Grade', '2nd Grade', '3rd Grade', '4th Grade', '5th Grade', '6th Grade',
+  '7th Grade', '8th Grade', '9th Grade', '10th Grade', '11th Grade', '12th Grade', 'Custom',
+];
 
 interface SettingsState extends GameSettings {
   isAdmin: boolean;
@@ -36,7 +42,23 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'vocab-adventure-settings',
       version: 3,
-      migrate: (persistedState: any, version: number) => {
+      storage: createSafeJSONStorage<SettingsState>(),
+      merge: (persisted, current) => {
+        if (!isPlainObject(persisted)) return current;
+        const p = persisted as Partial<SettingsState>;
+        const bool = (v: unknown, fallback: boolean) => (typeof v === 'boolean' ? v : fallback);
+        return {
+          ...current,
+          gradeLevel: GRADE_LEVELS.includes(p.gradeLevel as GradeLevel) ? (p.gradeLevel as GradeLevel) : current.gradeLevel,
+          soundEnabled: bool(p.soundEnabled, current.soundEnabled),
+          soundVolume: finiteNumber(p.soundVolume, current.soundVolume, 0, 1),
+          reduceMotion: bool(p.reduceMotion, current.reduceMotion),
+          hasSeenOnboarding: bool(p.hasSeenOnboarding, current.hasSeenOnboarding),
+          hapticsEnabled: bool(p.hapticsEnabled, current.hapticsEnabled),
+          isAdmin: bool(p.isAdmin, current.isAdmin),
+        };
+      },
+      migrate: (persistedState: any, _version: number) => {
         const state = persistedState as Partial<SettingsState>;
         return {
           ...state,

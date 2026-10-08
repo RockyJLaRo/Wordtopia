@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Compass, BookOpen, Sparkles, CheckCircle2, RotateCcw, ArrowRight, ShieldAlert, Award } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -10,6 +10,7 @@ import { haptic } from '../utils/haptics';
 import { getWordLinguisticProfile } from '../utils/linguisticEngine';
 import { shuffleArray, getDistractors } from '../utils/gameUtils';
 import { VocabWord } from '../types';
+import { useActionLock } from '../hooks/useGameTimers';
 
 interface QuestStep {
   word: VocabWord;
@@ -42,7 +43,12 @@ export function ContextQuest() {
     }
   }, [words.length]);
 
+  const answerLock = useActionLock();
+  const advanceLock = useActionLock();
+
   const initQuest = () => {
+    answerLock.release();
+    advanceLock.release();
     const shuffled = shuffleArray(words).slice(0, TOTAL_STEPS);
     const steps: QuestStep[] = shuffled.map((w) => {
       const profile = getWordLinguisticProfile(w);
@@ -67,7 +73,7 @@ export function ContextQuest() {
   };
 
   const handleChooseWord = (choice: VocabWord) => {
-    if (gameState !== 'story') return;
+    if (gameState !== 'story' || !answerLock.acquire()) return;
 
     const currentStep = questSteps[currentStepIndex];
     if (!currentStep) return;
@@ -97,6 +103,7 @@ export function ContextQuest() {
   };
 
   const handleNextStep = () => {
+    if (gameState !== 'resolution' || !advanceLock.acquire()) return; // ignore double taps on "Continue"
     const nextIndex = currentStepIndex + 1;
     if (nextIndex >= questSteps.length) {
       setGameState('finished');
@@ -110,6 +117,8 @@ export function ContextQuest() {
       }
     } else {
       setCurrentStepIndex(nextIndex);
+      answerLock.release();
+      advanceLock.release();
       setSelectedChoice(null);
       setGameState('story');
     }

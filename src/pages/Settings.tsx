@@ -68,6 +68,14 @@ export function Settings() {
   };
 
   const handleReset = () => {
+    // Irreversible: wipes coins, items and word mastery, so always confirm first.
+    if (
+      !window.confirm(
+        'Reset ALL progress? Coins, stars, items and word mastery will be erased. This cannot be undone.'
+      )
+    ) {
+      return;
+    }
     resetProgress();
     resetMastery();
     notify.success('Progress and mastery have been successfully reset.');

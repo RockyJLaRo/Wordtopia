@@ -12,7 +12,7 @@ import {
   playBumpSound,
 } from '../utils/audio';
 import { haptic } from '../utils/haptics';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { Link } from 'react-router-dom';
 import {
   ArrowUp,
@@ -31,6 +31,7 @@ import { cn } from '../lib/utils';
 import { VocabWord } from '../types';
 import { SHOP_ITEMS } from '../data/shopItems';
 import { GameGraphic } from '../components/GameGraphic';
+import { useGameTimeouts, useLatest, useActionLock } from '../hooks/useGameTimers';
 
 // Base 10x10 map (0: Open Path, 1: Wall, 3: Finish)
 // Row 6 at x=1 is opened (0) so the player can explore both UP and RIGHT freely from start
@@ -109,6 +110,8 @@ export function VocabularyAdventure() {
     repeat: null,
   });
 
+  const stopRepeatRef = useRef<() => void>(() => {});
+
   // Touch swipe gesture ref
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const gameViewportRef = useRef<HTMLDivElement | null>(null);
@@ -120,14 +123,26 @@ export function VocabularyAdventure() {
     }
   }, []);
 
-  // Update map if words change drastically
+  const timeouts = useGameTimeouts();
+
+  // Re-place gates when the word list changes size (e.g. words finished loading or the lesson
+  // changed) but only before the player has started exploring. The old rule regenerated the map
+  // whenever every gate was solved, which could drop a new gate right under the player and
+  // made the "all gates cleared" state unreachable.
+  const isFreshRun = challengesSolved === 0 && playerPos.x === START_POS.x && playerPos.y === START_POS.y;
+  const isFreshRunRef = useLatest(isFreshRun);
+  const isFirstMapRun = useRef(true);
   useEffect(() => {
-    if (map.length === 0 || !map.some((row) => row.includes(2))) {
-      setMap(generateMap());
+    if (isFirstMapRun.current) {
+      isFirstMapRun.current = false;
+      return;
     }
-  }, [generateMap, map]);
+    if (isFreshRunRef.current) setMap(generateMap());
+  }, [generateMap]);
 
   // Start vocabulary challenge
+  const answerLock = useActionLock();
+
   const startChallenge = useCallback(
     (pos: { x: number; y: number }) => {
       if (words.length < 2) return;
@@ -141,6 +156,7 @@ export function VocabularyAdventure() {
       setTargetPos(pos);
       setChallengeFeedback(null);
       setIsAnswering(false);
+      answerLock.release();
       setGameState('challenge');
     },
     [words, config.answerChoices]
@@ -171,12 +187,13 @@ export function VocabularyAdventure() {
         playBumpSound(soundEnabled);
         haptic.bump();
         setBumpDir({ dx, dy });
-        setTimeout(() => setBumpDir(null), 180);
+        timeouts.set(() => setBumpDir(null), 180);
         return;
       }
 
       // Vocabulary challenge tile
       if (cell === 2) {
+        stopRepeatRef.current();
         haptic.medium();
         startChallenge({ x: nx, y: ny });
         return;
@@ -188,10 +205,11 @@ export function VocabularyAdventure() {
           playBumpSound(soundEnabled);
           haptic.bump();
           setPortalHint('⚡ Exit Portal Locked! Unlock at least one Vocabulary Gate to power the portal.');
-          setTimeout(() => setPortalHint(null), 3000);
+          timeouts.set(() => setPortalHint(null), 3000);
           return;
         }
 
+        stopRepeatRef.current();
         playWinSound(soundEnabled);
         haptic.win();
         setPlayerPos({ x: nx, y: ny });
@@ -213,6 +231,11 @@ export function VocabularyAdventure() {
     [gameState, map, playerPos, soundEnabled, reduceMotion, startChallenge, challengesSolved, incrementGamesCompleted, addStars, addCoins]
   );
 
+  // Press-and-hold repeat calls the *latest* movePlayer: the captured one kept stepping from
+  // the original tile and still believed the game was 'exploring' after a gate or the finish
+  // had been reached (re-rolling the gate question and re-awarding the trophy while held).
+  const movePlayerRef = useLatest(movePlayer);
+
   // Stop button repeat interval
   const stopRepeat = useCallback(() => {
     if (repeatTimerRef.current.delay) clearTimeout(repeatTimerRef.current.delay);
@@ -229,29 +252,43 @@ export function VocabularyAdventure() {
         e.stopPropagation();
       }
       stopRepeat();
-      movePlayer(dx, dy);
+      movePlayerRef.current(dx, dy);
 
       // Press-and-hold repeat for continuous movement down hallways
       repeatTimerRef.current.delay = setTimeout(() => {
         repeatTimerRef.current.repeat = setInterval(() => {
-          movePlayer(dx, dy);
+          movePlayerRef.current(dx, dy);
         }, 180);
       }, 280);
     },
-    [movePlayer, stopRepeat]
+    [stopRepeat]
   );
+
+  // Stop any held movement when a gate opens, the game ends, or the app is backgrounded
+  useEffect(() => {
+    if (gameState !== 'exploring') stopRepeat();
+  }, [gameState, stopRepeat]);
+
+  stopRepeatRef.current = stopRepeat;
 
   // Cleanup repeat timer on unmount or mouse/pointer release
   useEffect(() => {
     const handleGlobalRelease = () => stopRepeat();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') stopRepeat();
+    };
     window.addEventListener('pointerup', handleGlobalRelease);
     window.addEventListener('pointercancel', handleGlobalRelease);
     window.addEventListener('touchend', handleGlobalRelease);
+    window.addEventListener('blur', handleGlobalRelease);
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       stopRepeat();
       window.removeEventListener('pointerup', handleGlobalRelease);
       window.removeEventListener('pointercancel', handleGlobalRelease);
       window.removeEventListener('touchend', handleGlobalRelease);
+      window.removeEventListener('blur', handleGlobalRelease);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [stopRepeat]);
 
@@ -313,7 +350,7 @@ export function VocabularyAdventure() {
 
   // Answer handler for challenge modal
   const handleAnswer = (option: VocabWord) => {
-    if (!currentWord || isAnswering) return;
+    if (!currentWord || isAnswering || !answerLock.acquire()) return;
     setIsAnswering(true);
     const correct = option.id === currentWord.id;
     recordPractice(currentWord.id, correct);
@@ -346,12 +383,16 @@ export function VocabularyAdventure() {
         isWrong: true,
         message: `Oops! "${currentWord.word}" means: ${currentWord.definition}`,
       });
+      // Stays locked: the options are replaced by the explanation, and the next gate
+      // (startChallenge) releases the lock.
       setIsAnswering(false);
     }
   };
 
   const restart = () => {
     haptic.medium();
+    stopRepeat();
+    timeouts.clearAll();
     setMap(generateMap());
     setPlayerPos(START_POS);
     setGameState('exploring');
@@ -446,9 +487,11 @@ export function VocabularyAdventure() {
             {score} pts
           </div>
           <button
+            type="button"
             onClick={restart}
-            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             title="Reset Maze"
+            aria-label="Reset maze"
           >
             <RotateCcw size={16} className="sm:w-[18px] sm:h-[18px]" />
           </button>
@@ -564,11 +607,13 @@ export function VocabularyAdventure() {
                     <span>Vocabulary Gate</span>
                   </div>
                   <button
+                    type="button"
                     onClick={() => {
                       setGameState('exploring');
                       setChallengeFeedback(null);
                     }}
-                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                    aria-label="Close vocabulary gate"
+                    className="p-2 -m-1 rounded-lg text-slate-500 hover:text-slate-700 transition-colors"
                   >
                     <X size={18} />
                   </button>
@@ -600,7 +645,7 @@ export function VocabularyAdventure() {
                   <div className="flex flex-col gap-1.5 sm:gap-2 max-h-52 overflow-y-auto pr-1">
                     {options.map((opt, i) => (
                       <button
-                        key={i}
+                        key={opt.id}
                         disabled={isAnswering}
                         onClick={() => handleAnswer(opt)}
                         className={`bg-slate-50 border-2 border-slate-200 hover:border-sky-400 hover:bg-sky-50 text-slate-700 font-bold text-xs p-2.5 sm:p-3 rounded-xl text-left transition-all active:scale-98 shadow-sm flex items-start gap-2 ${

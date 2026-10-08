@@ -4,7 +4,7 @@ import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { playCorrectSound, playWinSound, playIncorrectSound } from '../utils/audio';
 import { haptic } from '../utils/haptics';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { Link } from 'react-router-dom';
 import {
   Printer,
@@ -58,7 +58,11 @@ export function PracticeTest() {
 
   // Test State
   const [studentName, setStudentName] = useState(() => {
-    return localStorage.getItem('vocab_student_name') || '';
+    try {
+      return localStorage.getItem('vocab_student_name') || '';
+    } catch {
+      return ''; // storage blocked (private mode / embedded frame)
+    }
   });
   const [shuffledQuestions, setShuffledQuestions] = useState<VocabWord[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});

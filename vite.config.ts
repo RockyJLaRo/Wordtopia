@@ -1,8 +1,27 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import fs from 'fs';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+// AI Studio runs the dev server with HMR disabled; silence the resulting WebSocket noise.
+// Injected only while serving, so production pages don't pay for (or get altered by) it.
+function devHmrShim(): Plugin {
+  return {
+    name: 'dev-hmr-shim',
+    apply: 'serve',
+    transformIndexHtml() {
+      return [
+        {
+          tag: 'script',
+          children: fs.readFileSync(path.resolve(__dirname, 'scripts/dev-hmr-shim.js'), 'utf-8'),
+          injectTo: 'head-prepend',
+        },
+      ];
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
@@ -10,10 +29,13 @@ export default defineConfig(() => {
       hmr: false,
     },
     plugins: [
+      devHmrShim(),
       react(),
       tailwindcss(),
       VitePWA({
-        registerType: 'autoUpdate',
+        // 'prompt' lets src/services/pwaUpdate.ts apply updates between games instead of
+        // force-reloading mid-game the moment a new version is deployed.
+        registerType: 'prompt',
         injectRegister: false,
         devOptions: {
           enabled: false,
@@ -53,10 +75,30 @@ export default defineConfig(() => {
         workbox: {
           maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,svg,woff,woff2,txt}', 'pwa-*.png', 'apple-touch-icon.png'],
-          globIgnores: ['**/sprites/**'],
+          // Admin/PDF tooling is large and rarely used by kids: fetched (and runtime-cached) on demand
+          // instead of being downloaded by every device during service-worker install.
+          globIgnores: [
+            '**/sprites/**',
+            '**/assets/jspdf*',
+            '**/assets/html2canvas*',
+            '**/assets/purify*',
+            '**/assets/index.es-*',
+            '**/assets/AdminDashboard-*',
+            '**/assets/StyleGuide-*',
+          ],
           navigateFallback: '/',
           navigateFallbackDenylist: [/^\/api/],
           runtimeCaching: [
+            {
+              // Hashed build chunks that are not precached (PDF export, admin tools)
+              urlPattern: /\/assets\/.*\.js$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'lazy-chunks-cache',
+                expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
             {
               // Remote vocabulary data URL: NetworkFirst with offline cache fallback
               urlPattern: /^https:\/\/rockyjlaro\.github\.io\/Vocab\.txt.*/i,
@@ -140,29 +182,26 @@ export default defineConfig(() => {
       },
     },
     build: {
-      target: 'esnext',
+      target: 'es2020',
       chunkSizeWarningLimit: 600,
       rollupOptions: {
         output: {
+          // Only the React runtime gets a dedicated long-lived vendor chunk. Everything else
+          // (jsPDF, html2canvas, canvas-confetti, ...) is left to Rollup so it stays in the lazy
+          // chunks that actually use it. A broad manualChunks rule previously pulled Vite's
+          // preload helper into the jsPDF chunk, forcing ~600 kB of PDF code onto every page load.
           manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              if (id.includes('jspdf') || id.includes('html2canvas')) {
-                return 'vendor-pdf';
-              }
-              if (
-                id.includes('react') ||
-                id.includes('react-dom') ||
-                id.includes('react-router-dom') ||
-                id.includes('zustand')
-              ) {
-                return 'vendor-react';
-              }
-              if (id.includes('lucide-react')) {
-                return 'vendor-icons';
-              }
-              if (id.includes('canvas-confetti')) {
-                return 'vendor-confetti';
-              }
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|zustand|use-sync-external-store)[\\/]/.test(id)) {
+              return 'vendor-react';
+            }
+            // Keep icons in one cacheable chunk instead of dozens of sub-1 kB files
+            // (each extra request costs a full round trip on mobile networks).
+            if (/[\\/]node_modules[\\/]lucide-react[\\/]/.test(id)) {
+              return 'vendor-icons';
+            }
+            // Helpers shared by every game mode: one download for all of them.
+            if (/[\\/]src[\\/]utils[\\/](gameUtils|gradeConfig|linguisticEngine)\.ts$/.test(id)) {
+              return 'game-core';
             }
           },
         },

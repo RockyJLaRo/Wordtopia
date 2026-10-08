@@ -22,7 +22,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { GameGraphic } from '../components/GameGraphic';
 import { haptic } from '../utils/haptics';
 import { playClickSound, playTabSound, playMascotSound } from '../utils/audio';

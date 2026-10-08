@@ -45,7 +45,24 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 
   imageElementCache.set(src, promise);
+  // Don't remember failures: a sprite that failed while offline must be retried later.
+  promise.catch(() => {
+    if (imageElementCache.get(src) === promise) imageElementCache.delete(src);
+  });
   return promise;
+}
+
+/** Loads the first URL in the list that succeeds (null if none do). */
+async function loadFirstAvailable(urls: (string | null | undefined)[]): Promise<HTMLImageElement | null> {
+  for (const url of urls) {
+    if (!url) continue;
+    try {
+      return await loadImage(url);
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
 }
 
 /**
@@ -93,9 +110,12 @@ export function resolveEquippedItemForLayer(
   return undefined;
 }
 
-// 64x64 composite cache to avoid re-compositing identical states
+// 64x64 composite cache to avoid re-compositing identical states (LRU-bounded so browsing
+// many outfits in the shop doesn't grow memory without limit on low-end phones).
 // Key: `${avatarId}|${style}|${sortedEquippedPairs}`
+const COMPOSITE_CACHE_LIMIT = 80;
 const compositeCanvasCache = new Map<string, HTMLCanvasElement>();
+const pendingComposites = new Map<string, Promise<HTMLCanvasElement>>();
 
 export function getCompositeCacheKey(
   avatarId: string,
@@ -118,6 +138,9 @@ export function getCompositeCacheKey(
  * Back-to-front layer order: BACK -> TAIL -> BASE -> TEXTURE -> BODY -> NECK -> HAND -> FACE -> HEAD
  * TAIL: If custom tail is equipped, renders custom tail sprite; otherwise renders layer_TAIL_default.png.
  * BASE: Renders layer_BASE_no_tail.png so default tail does not clash or duplicate.
+ *
+ * All layer images are requested in parallel (one network round trip instead of up to nine),
+ * then drawn in the fixed back-to-front order.
  */
 export async function createAvatar64Composite(
   avatarId: string = 'black_cat',
@@ -126,97 +149,68 @@ export async function createAvatar64Composite(
 ): Promise<HTMLCanvasElement> {
   const cacheKey = getCompositeCacheKey(avatarId, equipped, style);
   const cached = compositeCanvasCache.get(cacheKey);
-  if (cached) return cached;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 64;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return canvas;
-
-  // NEAREST NEIGHBOR rule: disable all smoothing at the native composite level
-  ctx.imageSmoothingEnabled = false;
-
-  const equippedTailId = resolveEquippedItemForLayer('TAIL', equipped);
-
-  for (const layer of LAYER_ORDER) {
-    try {
-      if (layer === 'TAIL') {
-        if (equippedTailId) {
-          const equippedUrl = getItemEquippedPreviewUrl(equippedTailId, avatarId, style);
-          const standaloneUrl = getItemStandaloneUrl(equippedTailId, avatarId, style);
-          let img: HTMLImageElement | null = null;
-          if (equippedUrl) {
-            try {
-              img = await loadImage(equippedUrl);
-            } catch {
-              if (standaloneUrl) {
-                try {
-                  img = await loadImage(standaloneUrl);
-                } catch {}
-              }
-            }
-          }
-          if (img) {
-            ctx.drawImage(img, 0, 0, 64, 64);
-          }
-        } else {
-          // Draw default tail for this avatar behind body
-          const defaultTailUrl = getDefaultTailUrl(avatarId, style);
-          try {
-            const tailImg = await loadImage(defaultTailUrl);
-            ctx.drawImage(tailImg, 0, 0, 64, 64);
-          } catch (e) {
-            // Optional fallback
-          }
-        }
-      } else if (layer === 'BASE') {
-        // Render base without tail so default tail is never duplicated over custom tail
-        const baseNoTailUrl = `/sprites/${style}/${avatarId}/sprites/base/layer_BASE_no_tail.png`;
-        try {
-          const baseImg = await loadImage(baseNoTailUrl);
-          ctx.drawImage(baseImg, 0, 0, 64, 64);
-        } catch {
-          // Fallback to standard base_{avatarId}.png
-          const fallbackBaseUrl = getAvatarBaseUrl(avatarId, style);
-          const baseImg = await loadImage(fallbackBaseUrl);
-          ctx.drawImage(baseImg, 0, 0, 64, 64);
-        }
-      } else {
-        // Any other equippable slot: BACK, TEXTURE, BODY, NECK, HAND, FACE, HEAD
-        const itemId = resolveEquippedItemForLayer(layer, equipped);
-        if (itemId) {
-          const equippedUrl = getItemEquippedPreviewUrl(itemId, avatarId, style);
-          const standaloneUrl = getItemStandaloneUrl(itemId, avatarId, style);
-          let img: HTMLImageElement | null = null;
-          if (equippedUrl) {
-            try {
-              img = await loadImage(equippedUrl);
-            } catch {
-              if (standaloneUrl) {
-                try {
-                  img = await loadImage(standaloneUrl);
-                } catch {}
-              }
-            }
-          } else if (standaloneUrl) {
-            try {
-              img = await loadImage(standaloneUrl);
-            } catch {}
-          }
-
-          if (img) {
-            ctx.drawImage(img, 0, 0, 64, 64);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn(`[AvatarRenderer] Could not load sprite layer "${layer}" for ${avatarId}:`, e);
-    }
+  if (cached) {
+    // refresh LRU position
+    compositeCanvasCache.delete(cacheKey);
+    compositeCanvasCache.set(cacheKey, cached);
+    return cached;
   }
+  const pending = pendingComposites.get(cacheKey);
+  if (pending) return pending;
 
-  compositeCanvasCache.set(cacheKey, canvas);
-  return canvas;
+  const build = (async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+
+    // NEAREST NEIGHBOR rule: disable all smoothing at the native composite level
+    ctx.imageSmoothingEnabled = false;
+
+    const candidatesFor = (layer: SpriteLayer): (string | null | undefined)[] => {
+      if (layer === 'BASE') {
+        return [`/sprites/${style}/${avatarId}/sprites/base/layer_BASE_no_tail.png`, getAvatarBaseUrl(avatarId, style)];
+      }
+      const itemId = resolveEquippedItemForLayer(layer, equipped);
+      if (itemId) {
+        return [getItemEquippedPreviewUrl(itemId, avatarId, style), getItemStandaloneUrl(itemId, avatarId, style)];
+      }
+      // Draw default tail for this avatar behind body
+      return layer === 'TAIL' ? [getDefaultTailUrl(avatarId, style)] : [];
+    };
+
+    const layerImages = await Promise.all(LAYER_ORDER.map((layer) => loadFirstAvailable(candidatesFor(layer))));
+
+    let drawnBase = false;
+    LAYER_ORDER.forEach((layer, i) => {
+      const img = layerImages[i];
+      if (!img) return;
+      try {
+        ctx.drawImage(img, 0, 0, 64, 64);
+        if (layer === 'BASE') drawnBase = true;
+      } catch (e) {
+        console.warn(`[AvatarRenderer] Could not draw sprite layer "${layer}" for ${avatarId}:`, e);
+      }
+    });
+
+    // Only cache complete renders; a missing base (e.g. offline) should be retried next time.
+    if (drawnBase) {
+      compositeCanvasCache.set(cacheKey, canvas);
+      if (compositeCanvasCache.size > COMPOSITE_CACHE_LIMIT) {
+        const oldestKey = compositeCanvasCache.keys().next().value;
+        if (oldestKey !== undefined) compositeCanvasCache.delete(oldestKey);
+      }
+    }
+    return canvas;
+  })();
+
+  pendingComposites.set(cacheKey, build);
+  try {
+    return await build;
+  } finally {
+    pendingComposites.delete(cacheKey);
+  }
 }
 
 /**

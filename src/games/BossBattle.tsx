@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Swords, Shield, Zap, Sparkles, Heart, Award, RotateCcw, ArrowRight, Skull } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -10,6 +10,41 @@ import { haptic } from '../utils/haptics';
 import { getWordLinguisticProfile } from '../utils/linguisticEngine';
 import { shuffleArray, getDistractors } from '../utils/gameUtils';
 import { VocabWord } from '../types';
+import { useGameTimeouts, useActionLock } from '../hooks/useGameTimers';
+
+/** Plausible misspellings that are guaranteed to differ from the real word and each other. */
+function makeMisspellings(word: string, count: number): string[] {
+  const lower = word.toLowerCase();
+  const swaps: [RegExp, string][] = [
+    [/e/i, 'a'], [/a/i, 'e'], [/i/i, 'y'], [/o/i, 'u'], [/(.)\1/, '$1'], [/c/i, 'k'], [/s/i, 'z'],
+  ];
+  const candidates = [
+    word.length > 4 ? word.slice(0, -2) + word.slice(-1) : null, // drop a letter
+    ...swaps.map(([re, rep]) => word.replace(re, rep)), // vowel/consonant swaps
+    word.length > 2 ? word.slice(0, 1) + word.slice(2, 3) + word.slice(1, 2) + word.slice(3) : null, // transpose
+    word + (word.endsWith('e') ? 'd' : 'e'),
+    word.length > 1 ? word.slice(0, -1) + word.slice(-1).repeat(2) : null,
+  ];
+  const out: string[] = [];
+  const seen = new Set([lower]);
+  for (const c of candidates) {
+    if (!c || seen.has(c.toLowerCase())) continue;
+    seen.add(c.toLowerCase());
+    out.push(c);
+    if (out.length >= count) break;
+  }
+  return out;
+}
+
+const uniqueOptions = (options: string[]) => {
+  const seen = new Set<string>();
+  return options.filter((o) => {
+    const key = o.trim().toLowerCase();
+    if (!o.trim() || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 interface CombatTurn {
   word: VocabWord;
@@ -35,6 +70,11 @@ export function BossBattle() {
   const [bossAttackAnim, setBossAttackAnim] = useState(false);
 
   const TOTAL_TURNS = 5;
+  const timeouts = useGameTimeouts();
+  // Words for this battle, shuffled once so a fight doesn't repeat the same word.
+  const roundWordsRef = useRef<VocabWord[]>([]);
+  const answerLock = useActionLock();
+  const advanceLock = useActionLock();
 
   useEffect(() => {
     if (words.length >= 2) {
@@ -43,6 +83,8 @@ export function BossBattle() {
   }, [words.length]);
 
   const initBattle = () => {
+    timeouts.clearAll();
+    roundWordsRef.current = shuffleArray(words);
     setBossHp(100);
     setPlayerHp(100);
     setTurnIndex(0);
@@ -51,8 +93,12 @@ export function BossBattle() {
   };
 
   const loadTurn = (idx: number) => {
+    answerLock.release();
+    advanceLock.release();
     if (idx >= TOTAL_TURNS) {
-      // Player victory
+      // Player victory (keep input locked so the reward can't be granted twice)
+      answerLock.acquire();
+      advanceLock.acquire();
       setGameState('won');
       incrementGamesCompleted();
       addCoins(100, 'Defeated the Lexicon Titan');
@@ -65,7 +111,8 @@ export function BossBattle() {
       return;
     }
 
-    const available = shuffleArray(words);
+    if (roundWordsRef.current.length === 0) roundWordsRef.current = shuffleArray(words);
+    const available = roundWordsRef.current;
     const target = available[idx % available.length];
     const profile = getWordLinguisticProfile(target);
 
@@ -83,28 +130,29 @@ export function BossBattle() {
       questionText = `What does "${target.word}" mean?`;
       correctAnswer = target.definition;
       const distractors = getDistractors(words, target, 3).map((d) => d.definition);
-      options = shuffleArray([correctAnswer, ...distractors]);
+      options = shuffleArray(uniqueOptions([correctAnswer, ...distractors]));
     } else if (chosenMode === 'context') {
       prompt = '🛡️ CONTEXT SHIELD: Complete the sentence to deflect the Titan attack!';
       questionText = profile.clozeSentence.replace('_____', `[ ? ]`);
       correctAnswer = target.word;
       const distractors = getDistractors(words, target, 3).map((d) => d.word);
-      options = shuffleArray([correctAnswer, ...distractors]);
+      options = shuffleArray(uniqueOptions([correctAnswer, ...distractors]));
     } else if (chosenMode === 'synonym') {
       prompt = '⚔️ SYNONYM SLASH: Find the closest semantic ally!';
       questionText = `Which word is most similar in meaning to "${target.word}"?`;
       correctAnswer = profile.synonyms[0] || target.word;
       const otherSynonyms = getDistractors(words, target, 3).map((d) => d.word);
-      options = shuffleArray([correctAnswer, ...otherSynonyms]);
+      options = shuffleArray(uniqueOptions([correctAnswer, ...otherSynonyms]));
     } else {
       prompt = '💥 SPELLING BLAST: Choose the exact orthographic spelling!';
       questionText = `Definition: "${target.definition}"`;
       correctAnswer = target.word;
-      // create plausible spelling variations
-      const misspelled1 = target.word.length > 5 ? target.word.slice(0, -2) + target.word.slice(-1) : target.word + 'e';
-      const misspelled2 = target.word.replace(/e/i, 'a') || target.word + 's';
-      const otherWord = getDistractors(words, target, 1)[0]?.word || 'custom';
-      options = shuffleArray([correctAnswer, misspelled1, misspelled2, otherWord]);
+      // create plausible spelling variations (never identical to the real spelling, which
+      // previously produced two "correct" buttons for words without an "e")
+      const otherWord = getDistractors(words, target, 1)[0]?.word;
+      options = shuffleArray(
+        uniqueOptions([correctAnswer, ...makeMisspellings(target.word, 2), ...(otherWord ? [otherWord] : [])])
+      );
     }
 
     setCurrentTurn({
@@ -121,7 +169,7 @@ export function BossBattle() {
   };
 
   const handleSelectAnswer = (ans: string) => {
-    if (gameState !== 'battle' || !currentTurn) return;
+    if (gameState !== 'battle' || !currentTurn || !answerLock.acquire()) return;
 
     const isCorrect = ans === currentTurn.correctAnswer;
     recordPractice(currentTurn.word.id, isCorrect, currentTurn.mode === 'spelling' ? 'spelling' : currentTurn.mode === 'context' ? 'context' : 'definition');
@@ -136,7 +184,9 @@ export function BossBattle() {
       setFeedbackText(`CRITICAL HIT! Your command struck the Titan for 25 damage!`);
 
       if (newBossHp <= 0) {
-        setTimeout(() => {
+        // Lock input immediately; the victory screen follows after the hit animation.
+        setGameState('feedback');
+        timeouts.set(() => {
           setGameState('won');
           incrementGamesCompleted();
           addCoins(100, 'Defeated Lexicon Titan');
@@ -160,7 +210,8 @@ export function BossBattle() {
       );
 
       if (newPlayerHp <= 0) {
-        setTimeout(() => {
+        setGameState('feedback');
+        timeouts.set(() => {
           setGameState('lost');
           haptic.error();
         }, 800);
@@ -172,6 +223,8 @@ export function BossBattle() {
   };
 
   const handleNextTurn = () => {
+    // Ignore taps while the final blow resolves (boss or player at 0 HP).
+    if (gameState !== 'feedback' || bossHp <= 0 || playerHp <= 0 || !advanceLock.acquire()) return;
     const nextIdx = turnIndex + 1;
     setTurnIndex(nextIdx);
     loadTurn(nextIdx);

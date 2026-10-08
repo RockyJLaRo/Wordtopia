@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Lightbulb, CheckCircle2, RotateCcw, ArrowRight, Award, HelpCircle } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -10,6 +10,7 @@ import { haptic } from '../utils/haptics';
 import { getWordLinguisticProfile } from '../utils/linguisticEngine';
 import { getDistractors, shuffleArray } from '../utils/gameUtils';
 import { VocabWord } from '../types';
+import { useActionLock } from '../hooks/useGameTimers';
 
 export function WordDetective() {
   const { words, recordPractice } = useVocabStore();
@@ -28,6 +29,9 @@ export function WordDetective() {
   const [casesSolvedWithFewestClues, setCasesSolvedWithFewestClues] = useState(0);
 
   const TOTAL_QUESTIONS = Math.min(5, words.length);
+  const roundWordsRef = useRef<VocabWord[]>([]);
+  const answerLock = useActionLock();
+  const advanceLock = useActionLock();
 
   useEffect(() => {
     if (words.length >= 2 && !currentWord) {
@@ -49,7 +53,11 @@ export function WordDetective() {
       return;
     }
 
-    const available = shuffleArray(words);
+    answerLock.release();
+    advanceLock.release();
+    // Pick from a per-round shuffled list so one round doesn't repeat a word.
+    if (nextCount === 0 || roundWordsRef.current.length === 0) roundWordsRef.current = shuffleArray(words);
+    const available = roundWordsRef.current;
     const target = available[nextCount % available.length];
     const profile = getWordLinguisticProfile(target);
 
@@ -73,7 +81,7 @@ export function WordDetective() {
   };
 
   const handleSelectOption = (opt: VocabWord) => {
-    if (gameState !== 'playing' || !currentWord) return;
+    if (gameState !== 'playing' || !currentWord || !answerLock.acquire()) return;
 
     setSelectedWord(opt);
     const correct = opt.id === currentWord.id;
@@ -102,6 +110,7 @@ export function WordDetective() {
   };
 
   const handleNextCase = () => {
+    if (gameState !== 'feedback' || !advanceLock.acquire()) return; // ignore double taps
     const nextCount = questionCount + 1;
     setQuestionCount(nextCount);
     loadNextQuestion(nextCount);

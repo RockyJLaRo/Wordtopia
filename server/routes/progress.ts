@@ -37,19 +37,36 @@ progressRouter.post('/sync', requireAuth, (req: Request, res: Response) => {
   const progressMap = db.get('progress');
   const existing = progressMap[userId];
 
+  // Untrusted client input: keep numbers finite and in range, strings short, collections typed.
+  const num = (v: unknown, fallback: number, min = 0, max = 10_000_000) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : fallback;
+  const str = (v: unknown, fallback: string, maxLen: number) =>
+    typeof v === 'string' && v.trim() ? v.trim().slice(0, maxLen) : fallback;
+  const safeEquipped =
+    equipped && typeof equipped === 'object' && !Array.isArray(equipped)
+      ? Object.fromEntries(
+          Object.entries(equipped as Record<string, unknown>)
+            .filter(([k, v]) => typeof v === 'string' && k.length <= 40 && v.length <= 80)
+            .slice(0, 20)
+        ) as Record<string, string>
+      : undefined;
+  const safeInventory = Array.isArray(inventory)
+    ? inventory.filter((i: unknown): i is string => typeof i === 'string' && i.length <= 80).slice(0, 2000)
+    : undefined;
+
   const updated: UserProgressRecord = {
     userId,
-    stars: typeof stars === 'number' ? Math.max(0, stars) : existing?.stars || 0,
-    coins: typeof coins === 'number' ? Math.max(0, coins) : existing?.coins || 0,
-    currentStreak: typeof currentStreak === 'number' ? currentStreak : existing?.currentStreak || 0,
-    bestStreak: typeof bestStreak === 'number' ? Math.max(bestStreak, existing?.bestStreak || 0) : existing?.bestStreak || 0,
-    mascotName: mascotName || existing?.mascotName || 'Aurora Nova',
-    mascotBaseId: mascotBaseId || existing?.mascotBaseId || 'cat_aurora',
-    mascotHealth: typeof mascotHealth === 'number' ? mascotHealth : existing?.mascotHealth ?? 100,
-    mascotHappiness: typeof mascotHappiness === 'number' ? mascotHappiness : existing?.mascotHappiness ?? 100,
-    equipped: equipped || existing?.equipped || {},
-    inventory: Array.isArray(inventory) ? inventory : existing?.inventory || [],
-    activeMicropet: activeMicropet !== undefined ? activeMicropet : existing?.activeMicropet,
+    stars: num(stars, existing?.stars || 0),
+    coins: num(coins, existing?.coins || 0),
+    currentStreak: num(currentStreak, existing?.currentStreak || 0),
+    bestStreak: Math.max(num(bestStreak, 0), existing?.bestStreak || 0),
+    mascotName: str(mascotName, existing?.mascotName || 'Aurora Nova', 40),
+    mascotBaseId: str(mascotBaseId, existing?.mascotBaseId || 'cat_aurora', 40),
+    mascotHealth: num(mascotHealth, existing?.mascotHealth ?? 100, 0, 100),
+    mascotHappiness: num(mascotHappiness, existing?.mascotHappiness ?? 100, 0, 100),
+    equipped: safeEquipped || existing?.equipped || {},
+    inventory: safeInventory || existing?.inventory || [],
+    activeMicropet: typeof activeMicropet === 'string' ? activeMicropet.slice(0, 40) : existing?.activeMicropet,
     updatedAt: Date.now(),
   };
 

@@ -150,9 +150,24 @@ export function verifyPassword(password: string, hash: string, salt: string): bo
 }
 
 // Initial DB seeding
+const LEGACY_DEFAULT_ADMIN_PASSWORD = 'SuperAdmin123!';
+
+// The super-admin password comes from the ADMIN_PASSWORD environment variable. Without it a
+// random one is generated and printed once, instead of a password published in the source code.
+function resolveInitialAdminPassword(): string {
+  if (process.env.ADMIN_PASSWORD) return process.env.ADMIN_PASSWORD;
+  const generated = crypto.randomBytes(12).toString('base64url');
+  console.warn(`[DB] ADMIN_PASSWORD not set. Generated super admin password (admin@wordtopia.org): ${generated}`);
+  return generated;
+}
+
 function getInitialDatabase(): DatabaseSchema {
   const adminSalt = crypto.randomBytes(16).toString('hex');
-  const adminHash = crypto.pbkdf2Sync('SuperAdmin123!', adminSalt, 10000, 64, 'sha512').toString('hex');
+  const adminHash = crypto.pbkdf2Sync(resolveInitialAdminPassword(), adminSalt, 10000, 64, 'sha512').toString('hex');
+  // hashPassword() picks a random salt per call, so hash and salt must come from the same call
+  // (the demo student accounts previously stored mismatched pairs and could never sign in).
+  const leo = hashPassword('LeoPass123!');
+  const maya = hashPassword('MayaPass123!');
 
   const teacherSalt = crypto.randomBytes(16).toString('hex');
   const teacherHash = crypto.pbkdf2Sync('TeacherPass123!', teacherSalt, 10000, 64, 'sha512').toString('hex');
@@ -188,8 +203,8 @@ function getInitialDatabase(): DatabaseSchema {
         id: 'usr_student_leo',
         username: 'StarExplorerLeo',
         email: 'parent.leo@example.com',
-        passwordHash: hashPassword('LeoPass123!').hash,
-        salt: hashPassword('LeoPass123!').salt,
+        passwordHash: leo.hash,
+        salt: leo.salt,
         role: 'user',
         createdAt: now - 14 * day,
         lastLoginAt: now - 3 * 60 * 60 * 1000,
@@ -199,8 +214,8 @@ function getInitialDatabase(): DatabaseSchema {
         id: 'usr_student_maya',
         username: 'CosmicMaya',
         email: 'parent.maya@example.com',
-        passwordHash: hashPassword('MayaPass123!').hash,
-        salt: hashPassword('MayaPass123!').salt,
+        passwordHash: maya.hash,
+        salt: maya.salt,
         role: 'user',
         createdAt: now - 10 * day,
         lastLoginAt: now - 5 * 60 * 60 * 1000,
@@ -403,25 +418,57 @@ function getInitialDatabase(): DatabaseSchema {
   };
 }
 
+const SAVE_DEBOUNCE_MS = 400;
+
 class Database {
   private data: DatabaseSchema;
+  private saveTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     this.data = this.load();
+    this.secureLegacyAdminPassword();
+    // Make sure pending writes reach disk when the process stops (writes are synchronous,
+    // so they are safe inside an 'exit' handler).
+    process.once('exit', () => this.flush());
   }
 
   private load(): DatabaseSchema {
-    try {
-      if (fs.existsSync(DB_FILE)) {
+    if (fs.existsSync(DB_FILE)) {
+      try {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         return JSON.parse(raw);
+      } catch (e) {
+        // Keep the unreadable file for manual recovery instead of overwriting every account.
+        const backup = `${DB_FILE}.corrupt-${Date.now()}`;
+        console.error(`Failed to load database; moved it to ${backup} and created a fresh one:`, e);
+        try {
+          fs.renameSync(DB_FILE, backup);
+        } catch {}
       }
-    } catch (e) {
-      console.error('Failed to load database, creating fresh one:', e);
     }
     const initial = getInitialDatabase();
     this.saveDirect(initial);
     return initial;
+  }
+
+  /** Rotates the publicly known seed password if the deployment still uses it. */
+  private secureLegacyAdminPassword() {
+    const admin = this.data.users?.find((u) => u.id === 'usr_super_admin');
+    if (!admin) return;
+    let usesDefault = false;
+    try {
+      usesDefault = verifyPassword(LEGACY_DEFAULT_ADMIN_PASSWORD, admin.passwordHash, admin.salt);
+    } catch {}
+    if (!usesDefault) return;
+    if (process.env.ADMIN_PASSWORD) {
+      const { hash, salt } = hashPassword(process.env.ADMIN_PASSWORD);
+      admin.passwordHash = hash;
+      admin.salt = salt;
+      this.save();
+      console.log('[DB] Super admin password updated from ADMIN_PASSWORD.');
+    } else {
+      console.warn('[DB] SECURITY: the super admin still uses the default password from the source code. Set ADMIN_PASSWORD to rotate it.');
+    }
   }
 
   private saveDirect(data: DatabaseSchema) {
@@ -434,8 +481,25 @@ class Database {
     }
   }
 
+  /**
+   * Schedules a write. Bursts of updates (analytics events, diagnostics, progress syncs) are
+   * coalesced into one file write instead of synchronously re-serializing the whole database
+   * on every request, which blocked the server for all players.
+   */
   public save() {
-    this.saveDirect(this.data);
+    if (this.saveTimer) return;
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = null;
+      this.saveDirect(this.data);
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  public flush() {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+      this.saveDirect(this.data);
+    }
   }
 
   public get<K extends keyof DatabaseSchema>(key: K): DatabaseSchema[K] {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Hammer, Sparkles, Award, ArrowRight, RotateCcw, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -10,6 +10,7 @@ import { haptic } from '../utils/haptics';
 import { getWordLinguisticProfile } from '../utils/linguisticEngine';
 import { shuffleArray } from '../utils/gameUtils';
 import { VocabWord } from '../types';
+import { useActionLock } from '../hooks/useGameTimers';
 
 interface ForgeOption {
   id: string;
@@ -35,6 +36,9 @@ export function SentenceForge() {
 
   const TOTAL_QUESTIONS = Math.min(5, Math.max(3, words.length));
   const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const roundWordsRef = useRef<VocabWord[]>([]);
+  const answerLock = useActionLock();
+  const advanceLock = useActionLock();
 
   useEffect(() => {
     if (words.length >= 2 && !currentWord) {
@@ -59,7 +63,11 @@ export function SentenceForge() {
       return;
     }
 
-    const available = shuffleArray(words);
+    answerLock.release();
+    advanceLock.release();
+    // Pick from a per-round shuffled list so one round doesn't repeat a word.
+    if (count === 0 || roundWordsRef.current.length === 0) roundWordsRef.current = shuffleArray(words);
+    const available = roundWordsRef.current;
     const target = available[count % available.length];
     const profile = getWordLinguisticProfile(target);
 
@@ -94,7 +102,7 @@ export function SentenceForge() {
   };
 
   const handleSelectOption = (opt: ForgeOption) => {
-    if (gameState !== 'playing' || !currentWord) return;
+    if (gameState !== 'playing' || !currentWord || !answerLock.acquire()) return;
 
     setSelectedOption(opt);
     setGameState('feedback');
@@ -117,6 +125,7 @@ export function SentenceForge() {
   };
 
   const handleAdvance = () => {
+    if (gameState !== 'feedback' || !advanceLock.acquire()) return; // ignore double taps
     if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
     const nextCount = questionCount + 1;
     setQuestionCount(nextCount);

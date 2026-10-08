@@ -1,5 +1,6 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { authMiddleware } from './server/security';
@@ -27,14 +28,35 @@ async function startServer() {
   // In development, prioritize CLI port or 3000 (never accidentally bind to Cloud Run's 8080 nginx port)
   const PORT = cliPort || (isProd && process.env.PORT ? parseInt(process.env.PORT, 10) : 3000);
 
+  // Behind Cloud Run/AI Studio's proxy: use the client IP from X-Forwarded-For so login rate
+  // limiting is per player rather than one shared bucket for everyone.
+  if (isProd) app.set('trust proxy', 1);
+
+  // gzip text responses (JS/CSS/HTML/JSON): roughly 3-4x less data on mobile connections
+  app.use(compression());
+
+  // Static files are served before body parsing/auth so asset requests skip session lookups.
+  if (isProd) {
+    // Vite emits content-hashed file names under /assets, so they can be cached "forever".
+    app.use(
+      '/assets',
+      express.static(path.resolve(__dirname, 'dist/assets'), { immutable: true, maxAge: '1y', fallthrough: false })
+    );
+  }
+  // Serve static assets from public (sprites rarely change; let browsers reuse them for a week)
+  app.use(
+    express.static(path.resolve(__dirname, 'public'), {
+      setHeaders: (res, filePath) => {
+        if (filePath.includes(`${path.sep}sprites${path.sep}`)) res.setHeader('Cache-Control', 'public, max-age=604800');
+      },
+    })
+  );
+
   // Middlewares
   app.use(express.json({ limit: '5mb' }));
   app.use(express.urlencoded({ extended: true, limit: '5mb' }));
   app.use(cookieParser());
   app.use(authMiddleware);
-
-  // Serve static assets from public
-  app.use(express.static(path.resolve(__dirname, 'public')));
 
   // Mount API endpoints
   app.use('/api/auth', authRouter);
@@ -63,17 +85,32 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Production: serve built dist folder
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    // Production: serve built dist folder. index.html and the service worker must always be
+    // revalidated so players pick up new releases.
+    app.use(
+      express.static(path.resolve(__dirname, 'dist'), {
+        setHeaders: (res, filePath) => {
+          if (/(index\.html|sw\.js|manifest\.webmanifest)$/.test(filePath)) res.setHeader('Cache-Control', 'no-cache');
+        },
+      })
+    );
+    // Unknown API routes are real 404s, not the SPA page.
+    app.use('/api', (_req, res) => {
+      res.status(404).json({ error: 'Not found' });
+    });
     app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.resolve(__dirname, 'dist/index.html'));
     });
   }
 
   // Graceful error handler
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error('Unhandled server error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    const status = Number(err?.status || err?.statusCode) || 500;
+    if (status >= 500) console.error('Unhandled server error:', err);
+    // e.g. a stale /assets/*.js request after a deploy must be a 404 (the client then reloads),
+    // and a malformed JSON body is a 400, not a server crash.
+    res.status(status).json({ error: status >= 500 ? 'Internal server error' : 'Request could not be processed' });
   });
 
   const server = app.listen(PORT, cliHost, () => {
@@ -85,6 +122,8 @@ async function startServer() {
     server.close(() => {
       process.exit(0);
     });
+    // Don't hang forever on keep-alive connections; pending DB writes flush on exit.
+    setTimeout(() => process.exit(0), 5000).unref();
   };
   process.on('SIGTERM', handleShutdown);
   process.on('SIGINT', handleShutdown);

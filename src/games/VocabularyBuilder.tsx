@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Blocks, Hammer, CheckCircle2, RotateCcw, ArrowRight, Sparkles, Building2 } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -10,6 +10,7 @@ import { haptic } from '../utils/haptics';
 import { getWordLinguisticProfile, chunkWordIntoSyllables } from '../utils/linguisticEngine';
 import { shuffleArray, getRandomWords } from '../utils/gameUtils';
 import { VocabWord } from '../types';
+import { useActionLock } from '../hooks/useGameTimers';
 
 interface ChunkBlock {
   id: string;
@@ -33,6 +34,8 @@ export function VocabularyBuilder() {
   const [towerHeight, setTowerHeight] = useState(0);
 
   const TOTAL_LEVELS = Math.min(5, words.length);
+  const roundWordsRef = useRef<VocabWord[]>([]);
+  const advanceLock = useActionLock();
 
   useEffect(() => {
     if (words.length >= 2 && !currentWord) {
@@ -54,7 +57,10 @@ export function VocabularyBuilder() {
       return;
     }
 
-    const available = shuffleArray(words);
+    advanceLock.release();
+    // Pick from a per-round shuffled list so one round doesn't repeat a word.
+    if (lvl === 0 || roundWordsRef.current.length === 0) roundWordsRef.current = shuffleArray(words);
+    const available = roundWordsRef.current;
     const target = available[lvl % available.length];
     const profile = getWordLinguisticProfile(target);
 
@@ -116,7 +122,7 @@ export function VocabularyBuilder() {
   };
 
   const handleVerifySuccess = () => {
-    if (!currentWord) return;
+    if (!currentWord || gameState !== 'verifying' || !advanceLock.acquire()) return; // ignore double taps
 
     const isFlawless = mistakesThisWord === 0;
     recordPractice(currentWord.id, isFlawless, 'spelling');
