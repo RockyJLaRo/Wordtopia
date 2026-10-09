@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Lock, Mail, User, Shield, Sparkles, Key, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 
 export function AuthModal() {
   const { isAuthModalOpen, authModalMode, setAuthModal, login, register, requestPasswordReset, confirmPasswordReset, isLoading, error } =

@@ -4,6 +4,8 @@ import { PlayerProgress } from '../types';
 import { SPRITE_ITEMS, SpriteLayer } from '../data/avatarSprites';
 import { soundManager } from '../utils/soundManager';
 import { normalizeLayerName } from '../utils/avatarRenderer';
+import { localDateKey } from '../utils/dateKey';
+import { createSafeJSONStorage, finiteNumber, isPlainObject, stringArray, stringRecord } from '../utils/safeStorage';
 
 interface ProgressState extends PlayerProgress {
   isAvatarExportOpen?: boolean;
@@ -53,7 +55,9 @@ const initialState: PlayerProgress = {
   totalCorrect: 0,
   totalIncorrect: 0,
   achievements: [],
-  inventory: ['pink_bow', 'witch_hat', 'crystal_horns', 'fairy_wings', 'baseball_cap', 'gamer_headset', 'dino_hoodie', 'ninja_headband', 'bubble_aura', 'star_sparkles'],
+  // Only items that exist in the sprite catalog. (Unknown IDs here were "refunded" by the
+  // legacy-item cleanup in App.tsx, handing every brand-new player 2,000 free coins.)
+  inventory: ['pink_bow', 'witch_hat', 'crystal_horns', 'fairy_wings', 'baseball_cap', 'bubble_aura'],
   equipped: {
     HEAD: 'pink_bow'
   },
@@ -66,13 +70,64 @@ const initialState: PlayerProgress = {
   speedChallengePB: 0,
 };
 
+const nullableString = (v: unknown, fallback: string | null): string | null =>
+  typeof v === 'string' ? v : v === null ? null : fallback;
+
+/**
+ * Validates progress loaded from localStorage. Corrupted or hand-edited values (NaN coins,
+ * a non-array inventory, ...) previously crashed screens that call .includes()/.map() on them.
+ * Bad fields fall back to safe defaults while every valid field is kept.
+ */
+function sanitizePersistedProgress(persisted: unknown, current: ProgressState): ProgressState {
+  if (!isPlainObject(persisted)) return current;
+  const p = persisted as Partial<PlayerProgress> & Record<string, unknown>;
+  const transactions = Array.isArray(p.transactions)
+    ? p.transactions
+        .filter(
+          (t): t is PlayerProgress['transactions'][number] =>
+            isPlainObject(t) && typeof t.amount === 'number' && Number.isFinite(t.amount) && typeof t.reason === 'string'
+        )
+        .slice(0, 50)
+    : current.transactions;
+
+  return {
+    ...current,
+    coins: finiteNumber(p.coins, current.coins, 0),
+    stars: finiteNumber(p.stars, current.stars, 0),
+    transactions,
+    currentStreak: finiteNumber(p.currentStreak, 0, 0),
+    hasChosenStarter: typeof p.hasChosenStarter === 'boolean' ? p.hasChosenStarter : current.hasChosenStarter,
+    mascotBaseId: typeof p.mascotBaseId === 'string' && p.mascotBaseId ? p.mascotBaseId : current.mascotBaseId,
+    unlockedAvatars: stringArray(p.unlockedAvatars, current.unlockedAvatars),
+    wardrobeStyle: ['all', 'neutral', 'girl', 'boy'].includes(p.wardrobeStyle as string)
+      ? p.wardrobeStyle
+      : current.wardrobeStyle,
+    bestStreak: finiteNumber(p.bestStreak, 0, 0),
+    gamesCompleted: finiteNumber(p.gamesCompleted, 0, 0),
+    totalCorrect: finiteNumber(p.totalCorrect, 0, 0),
+    totalIncorrect: finiteNumber(p.totalIncorrect, 0, 0),
+    achievements: stringArray(p.achievements),
+    inventory: stringArray(p.inventory, current.inventory),
+    equipped: isPlainObject(p.equipped) ? stringRecord(p.equipped) : current.equipped,
+    mascotName: typeof p.mascotName === 'string' ? p.mascotName.slice(0, 40) : current.mascotName,
+    mascotHealth: finiteNumber(p.mascotHealth, current.mascotHealth, 0, 100),
+    mascotHappiness: finiteNumber(p.mascotHappiness, current.mascotHappiness, 0, 100),
+    dailyStreak: finiteNumber(p.dailyStreak, 1, 0),
+    lastPlayedDate: nullableString(p.lastPlayedDate, null),
+    lastClaimDate: nullableString(p.lastClaimDate, null),
+    speedChallengePB: finiteNumber(p.speedChallengePB, 0, 0),
+    // UI-only flag: never restore an open modal after a reload.
+    isAvatarExportOpen: false,
+  };
+}
+
 function processDailyPlay(state: any) {
-  const today = new Date().toLocaleDateString('en-CA');
+  const today = localDateKey();
   if (state.lastPlayedDate === today) return state;
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+  const yesterdayStr = localDateKey(yesterday);
 
   const newStreak = state.lastPlayedDate === yesterdayStr ? (state.dailyStreak || 0) + 1 : 1;
 
@@ -98,6 +153,7 @@ export const useProgressStore = create<ProgressState>()(
         unlockedAvatars: [...new Set([...(state.unlockedAvatars || []), id])]
       })),
       addCoins: (amount, reason = 'Gameplay') => {
+        if (!Number.isFinite(amount) || amount <= 0) return;
         soundManager.play('coin');
         set((state) => ({ 
           coins: state.coins + amount,
@@ -108,6 +164,7 @@ export const useProgressStore = create<ProgressState>()(
         }));
       },
       spendCoins: (amount, reason = 'Store Purchase') => {
+        if (!Number.isFinite(amount) || amount < 0) return false;
         let success = false;
         set((state) => {
           if (state.coins >= amount) {
@@ -128,11 +185,12 @@ export const useProgressStore = create<ProgressState>()(
         return success;
       },
       addStars: (amount) => {
+        if (!Number.isFinite(amount) || amount <= 0) return;
         soundManager.play('star');
         set((state) => ({ stars: state.stars + amount }));
       },
       claimDailyReward: () => set((state) => {
-        const today = new Date().toLocaleDateString('en-CA');
+        const today = localDateKey();
         if (state.lastClaimDate === today) return state;
 
         const nextState = processDailyPlay(state);
@@ -300,7 +358,12 @@ export const useProgressStore = create<ProgressState>()(
     {
       name: 'vocab-adventure-progress',
       version: 2,
+      storage: createSafeJSONStorage<ProgressState>(),
+      // Don't persist transient UI state.
+      partialize: ({ isAvatarExportOpen: _ignored, ...rest }) => rest as ProgressState,
+      merge: (persisted, current) => sanitizePersistedProgress(persisted, current),
       migrate: (persistedState: any, version: number) => {
+        if (!isPlainObject(persistedState)) return persistedState as unknown as ProgressState;
         if (version === 1) {
           if (persistedState.careStreak !== undefined) {
             persistedState.dailyStreak = persistedState.careStreak;
@@ -311,7 +374,7 @@ export const useProgressStore = create<ProgressState>()(
             delete persistedState.lastCareDate;
           }
         }
-        return persistedState as ProgressState;
+        return persistedState as unknown as ProgressState;
       },
     }
   )

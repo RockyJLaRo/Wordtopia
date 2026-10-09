@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { FlaskConical, Sparkles, CheckCircle2, RotateCcw, ArrowRight, Info, AlertTriangle } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -10,6 +10,7 @@ import { haptic } from '../utils/haptics';
 import { getWordLinguisticProfile } from '../utils/linguisticEngine';
 import { shuffleArray } from '../utils/gameUtils';
 import { VocabWord } from '../types';
+import { useGameTimeouts } from '../hooks/useGameTimers';
 
 interface SortBin {
   id: string;
@@ -34,6 +35,11 @@ export function WordSortLab() {
   const [binAssignments, setBinAssignments] = useState<Record<string, VocabWord[]>>({});
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; message: string } | null>(null);
   const [mistakeCount, setMistakeCount] = useState(0);
+  const timeouts = useGameTimeouts();
+  // Synchronous mirrors of the word queue: taps that arrive before React re-renders must see
+  // the updated queue, or the last word can be scored (and the lab completed) twice.
+  const selectedRef = useRef<VocabWord | null>(null);
+  const unsortedRef = useRef<VocabWord[]>([]);
 
   useEffect(() => {
     if (words.length >= 2) {
@@ -42,6 +48,7 @@ export function WordSortLab() {
   }, [words.length]);
 
   const initLabRound = () => {
+    timeouts.clearAll();
     // Determine the most pedagogically meaningful bins based on current words
     const sampleProfiles = words.map((w) => ({ word: w, profile: getWordLinguisticProfile(w) }));
     
@@ -103,6 +110,8 @@ export function WordSortLab() {
     setBins(chosenBins);
     setUnsortedWords(shuffled);
     setSelectedWord(shuffled[0] || null);
+    selectedRef.current = shuffled[0] || null;
+    unsortedRef.current = shuffled;
     setBinAssignments({ [chosenBins[0].id]: [], [chosenBins[1].id]: [] });
     setFeedback(null);
     setMistakeCount(0);
@@ -110,6 +119,7 @@ export function WordSortLab() {
   };
 
   const handleRouteToBin = (bin: SortBin) => {
+    const selectedWord = selectedRef.current;
     if (!selectedWord || gameState !== 'playing') return;
 
     const profile = getWordLinguisticProfile(selectedWord);
@@ -132,11 +142,16 @@ export function WordSortLab() {
         [bin.id]: [...(prev[bin.id] || []), selectedWord],
       }));
 
-      const remaining = unsortedWords.filter((w) => w.id !== selectedWord.id);
+      const remaining = unsortedRef.current.filter((w) => w.id !== selectedWord.id);
+      unsortedRef.current = remaining;
+      selectedRef.current = remaining[0] || null;
       setUnsortedWords(remaining);
 
       if (remaining.length === 0) {
-        setTimeout(() => {
+        // Clear the selection so extra taps during the finish delay can't re-score the last
+        // word (which awarded the completion bonus twice).
+        setSelectedWord(null);
+        timeouts.set(() => {
           setGameState('finished');
           incrementGamesCompleted();
           addCoins(60, 'Completed Word Sort Lab');

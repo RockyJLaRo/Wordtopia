@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Layers, Check, RotateCcw, Sparkles } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -11,6 +11,7 @@ import { playCorrectSound, playIncorrectSound, playWinSound } from '../utils/aud
 import { haptic } from '../utils/haptics';
 import { getGradeConfig } from '../utils/gradeConfig';
 import { VocabWord } from '../types';
+import { useGameTimeouts } from '../hooks/useGameTimers';
 
 type MatchMode = 'standard' | 'context' | 'synonyms' | 'mixed';
 
@@ -36,8 +37,13 @@ export function WordMatch() {
   const [matchedPairs, setMatchedPairs] = useState<Set<string>>(new Set());
   const [wrongPair, setWrongPair] = useState<{ w: string; t: string } | null>(null);
 
-  const wrongTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const finishTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const timeouts = useGameTimeouts();
+  // Set while a match is being resolved/finishing so extra taps can't be scored twice.
+  const isResolvingRef = useRef(false);
+  // Synchronous copies of selection/matches: taps can arrive before React re-renders.
+  const matchedRef = useRef<Set<string>>(new Set());
+  const selectedWordRef = useRef<string | null>(null);
+  const selectedTargetRef = useRef<string | null>(null);
 
   const PAIR_COUNT = Math.min(words.length, config.matchPairs || 4);
 
@@ -45,14 +51,15 @@ export function WordMatch() {
     if (words.length >= 2) {
       initGame();
     }
-    return () => {
-      if (wrongTimerRef.current) clearTimeout(wrongTimerRef.current);
-      if (finishTimerRef.current) clearTimeout(finishTimerRef.current);
-    };
   }, [words.length, matchMode]);
 
   const initGame = () => {
     if (words.length < 2) return;
+    timeouts.clearAll();
+    isResolvingRef.current = false;
+    matchedRef.current = new Set();
+    selectedWordRef.current = null;
+    selectedTargetRef.current = null;
 
     const pool = shuffleArray(words);
     const selected: VocabWord[] = [];
@@ -113,53 +120,80 @@ export function WordMatch() {
     setGameState('playing');
   };
 
-  useEffect(() => {
-    if (selectedWord && selectedTarget) {
-      if (selectedWord === selectedTarget) {
-        // Correct Match
-        playCorrectSound(soundEnabled);
-        haptic.success();
-        recordPractice(selectedWord, true, matchMode === 'context' ? 'context' : 'definition');
-        recordAnswer(true);
+  // Evaluates a pair once both sides are picked. Called from the tap handlers (not an effect),
+  // so each tap is processed exactly once.
+  const evaluatePair = (wordId: string, targetId: string) => {
+    if (isResolvingRef.current || matchedRef.current.has(wordId)) return;
+    selectedWordRef.current = null;
+    selectedTargetRef.current = null;
+    if (wordId === targetId) {
+      // Correct Match
+      playCorrectSound(soundEnabled);
+      haptic.success();
+      recordPractice(wordId, true, matchMode === 'context' ? 'context' : 'definition');
+      recordAnswer(true);
 
-        setMatchedPairs((prev) => {
-          const next = new Set(prev).add(selectedWord);
-          if (next.size >= wordCards.length && wordCards.length > 0) {
-            if (finishTimerRef.current) clearTimeout(finishTimerRef.current);
-            finishTimerRef.current = setTimeout(() => {
-              setGameState('finished');
-              incrementGamesCompleted();
-              addCoins(50, 'Completed Word Match');
-              addStars(2);
-              playWinSound(soundEnabled);
-              haptic.win();
-              if (!reduceMotion) {
-                confetti({ particleCount: 160, spread: 80 });
-              }
-            }, 500);
+      const next = new Set(matchedRef.current).add(wordId);
+      matchedRef.current = next;
+      setMatchedPairs(next);
+      setSelectedWord(null);
+      setSelectedTarget(null);
+
+      if (next.size >= wordCards.length && wordCards.length > 0) {
+        isResolvingRef.current = true;
+        timeouts.set(() => {
+          setGameState('finished');
+          incrementGamesCompleted();
+          addCoins(50, 'Completed Word Match');
+          addStars(2);
+          playWinSound(soundEnabled);
+          haptic.win();
+          if (!reduceMotion) {
+            confetti({ particleCount: 160, spread: 80 });
           }
-          return next;
-        });
+        }, 500);
+      }
+    } else {
+      // Wrong Match: briefly show it, ignoring taps until it clears
+      isResolvingRef.current = true;
+      playIncorrectSound(soundEnabled);
+      haptic.error();
+      setWrongPair({ w: wordId, t: targetId });
+      recordPractice(wordId, false);
+      recordAnswer(false);
 
+      timeouts.set(() => {
+        isResolvingRef.current = false;
+        setWrongPair(null);
         setSelectedWord(null);
         setSelectedTarget(null);
-      } else {
-        // Wrong Match
-        playIncorrectSound(soundEnabled);
-        haptic.error();
-        setWrongPair({ w: selectedWord, t: selectedTarget });
-        recordPractice(selectedWord, false);
-        recordAnswer(false);
-
-        if (wrongTimerRef.current) clearTimeout(wrongTimerRef.current);
-        wrongTimerRef.current = setTimeout(() => {
-          setWrongPair(null);
-          setSelectedWord(null);
-          setSelectedTarget(null);
-        }, 800);
-      }
+      }, 800);
     }
-  }, [selectedWord, selectedTarget, wordCards.length]);
+  };
+
+  const handlePickWord = (id: string) => {
+    if (isResolvingRef.current || matchedRef.current.has(id)) return;
+    if (selectedWordRef.current === id) {
+      selectedWordRef.current = null;
+      setSelectedWord(null);
+      return;
+    }
+    selectedWordRef.current = id;
+    setSelectedWord(id);
+    if (selectedTargetRef.current) evaluatePair(id, selectedTargetRef.current);
+  };
+
+  const handlePickTarget = (id: string) => {
+    if (isResolvingRef.current || matchedRef.current.has(id)) return;
+    if (selectedTargetRef.current === id) {
+      selectedTargetRef.current = null;
+      setSelectedTarget(null);
+      return;
+    }
+    selectedTargetRef.current = id;
+    setSelectedTarget(id);
+    if (selectedWordRef.current) evaluatePair(selectedWordRef.current, id);
+  };
 
   if (words.length < 2) {
     return (
@@ -248,6 +282,7 @@ export function WordMatch() {
             <button
               key={mode}
               onClick={() => setMatchMode(mode)}
+              aria-pressed={matchMode === mode}
               className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all capitalize ${
                 matchMode === mode
                   ? 'bg-white text-indigo-700 shadow-2xs'
@@ -276,7 +311,8 @@ export function WordMatch() {
               <button
                 key={card.id}
                 disabled={isMatched}
-                onClick={() => setSelectedWord(isSelected ? null : card.id)}
+                onClick={() => handlePickWord(card.id)}
+                aria-pressed={isSelected}
                 className={`p-4 rounded-2xl font-black text-base sm:text-lg border-2 sm:border-3 text-left transition-all active:scale-[0.98] flex items-center justify-between ${
                   isMatched
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-800 opacity-60'
@@ -308,7 +344,8 @@ export function WordMatch() {
               <button
                 key={card.id}
                 disabled={isMatched}
-                onClick={() => setSelectedTarget(isSelected ? null : card.id)}
+                onClick={() => handlePickTarget(card.id)}
+                aria-pressed={isSelected}
                 className={`p-3.5 sm:p-4 rounded-2xl font-bold text-xs sm:text-sm border-2 sm:border-3 text-left transition-all active:scale-[0.98] flex flex-col gap-1 leading-snug ${
                   isMatched
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-800 opacity-60'

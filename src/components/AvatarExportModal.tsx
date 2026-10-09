@@ -12,7 +12,7 @@ import {
   Camera,
   Share2,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { useProgressStore } from '../store/useProgressStore';
 import { AVATARS, SPRITE_ITEMS, LAYER_ORDER } from '../data/avatarSprites';
 import {

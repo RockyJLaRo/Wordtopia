@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Volume2, Sparkles, CheckCircle2, RotateCcw, ArrowRight, ShieldAlert, KeyRound } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -9,6 +9,11 @@ import { playCorrectSound, playIncorrectSound, playWinSound } from '../utils/aud
 import { haptic } from '../utils/haptics';
 import { shuffleArray } from '../utils/gameUtils';
 import { VocabWord } from '../types';
+import { useActionLock } from '../hooks/useGameTimers';
+
+// Only letters are spelled with tiles; spaces, hyphens and apostrophes are shown pre-filled.
+const isLetter = (ch: string) => /\p{L}/u.test(ch);
+const spellableLetters = (word: string) => Array.from(word.toUpperCase()).filter(isLetter);
 
 export function SpellingQuest() {
   const { words, recordPractice } = useVocabStore();
@@ -24,12 +29,30 @@ export function SpellingQuest() {
   const [score, setScore] = useState(0);
 
   const TOTAL_WORDS = Math.min(4, words.length);
+  // Each round picks its words once (shuffled); previously it always used the first 4 words.
+  const roundWordsRef = useRef<VocabWord[]>([]);
+  // Record at most one miss per word so a few slips don't tank its mastery score.
+  const missedCurrentRef = useRef(false);
+  // Synchronous mirrors so quick repeated taps (before React re-renders) can't place the same
+  // tile twice or record the finished word more than once.
+  const spelledRef = useRef<string[]>([]);
+  const usedTileIdsRef = useRef<Set<string>>(new Set());
+  const advanceLock = useActionLock();
 
   useEffect(() => {
     if (words.length >= 2 && !currentWord) {
       loadWord(0);
     }
   }, [words.length, currentWord]);
+
+  // Stop any pronunciation still playing when leaving the game.
+  useEffect(() => {
+    return () => {
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {}
+    };
+  }, []);
 
   const loadWord = (idx: number) => {
     if (idx >= TOTAL_WORDS) {
@@ -45,8 +68,16 @@ export function SpellingQuest() {
       return;
     }
 
-    const target = words[idx % words.length];
-    const cleanLetters = target.word.toUpperCase().split('');
+    if (idx === 0 || roundWordsRef.current.length === 0) {
+      roundWordsRef.current = shuffleArray(words).filter((w) => spellableLetters(w.word).length > 0);
+    }
+    const pool = roundWordsRef.current.length > 0 ? roundWordsRef.current : words;
+    const target = pool[idx % pool.length];
+    const cleanLetters = spellableLetters(target.word);
+    missedCurrentRef.current = false;
+    spelledRef.current = [];
+    usedTileIdsRef.current = new Set();
+    advanceLock.release();
 
     // Add 2 extra distractor letters
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -81,15 +112,18 @@ export function SpellingQuest() {
   };
 
   const handleSelectLetter = (item: { id: string; letter: string; used: boolean }) => {
-    if (item.used || gameState !== 'playing' || !currentWord) return;
+    if (item.used || usedTileIdsRef.current.has(item.id) || gameState !== 'playing' || !currentWord) return;
 
-    const targetLetters = currentWord.word.toUpperCase().split('');
-    const nextExpected = targetLetters[spelledLetters.length];
+    const targetLetters = spellableLetters(currentWord.word);
+    if (spelledRef.current.length >= targetLetters.length) return; // word already complete
+    const nextExpected = targetLetters[spelledRef.current.length];
 
     if (item.letter === nextExpected) {
       playCorrectSound(soundEnabled);
       haptic.success();
-      const nextSpelled = [...spelledLetters, item.letter];
+      const nextSpelled = [...spelledRef.current, item.letter];
+      spelledRef.current = nextSpelled;
+      usedTileIdsRef.current.add(item.id);
       setSpelledLetters(nextSpelled);
       setLetterPool((prev) =>
         prev.map((l) => (l.id === item.id ? { ...l, used: true } : l))
@@ -98,7 +132,9 @@ export function SpellingQuest() {
 
       // Check if word complete
       if (nextSpelled.length === targetLetters.length) {
-        recordPractice(currentWord.id, true, 'spelling');
+        if (!missedCurrentRef.current) {
+          recordPractice(currentWord.id, true, 'spelling');
+        }
         recordAnswer(true);
         setScore((prev) => prev + 100);
         setGameState('wordComplete');
@@ -111,31 +147,31 @@ export function SpellingQuest() {
       setHintMessage(
         `Next letter needed is a ${isNextVowel ? 'vowel (A, E, I, O, U)' : 'consonant'}!`
       );
-      recordPractice(currentWord.id, false, 'spelling');
-      recordAnswer(false);
+      if (!missedCurrentRef.current) {
+        missedCurrentRef.current = true;
+        recordPractice(currentWord.id, false, 'spelling');
+        recordAnswer(false);
+      }
     }
   };
 
   const handleBackspace = () => {
-    if (spelledLetters.length === 0 || gameState !== 'playing') return;
+    if (spelledRef.current.length === 0 || gameState !== 'playing') return;
 
-    const removedLetter = spelledLetters[spelledLetters.length - 1];
-    setSpelledLetters((prev) => prev.slice(0, -1));
+    const removedLetter = spelledRef.current[spelledRef.current.length - 1];
+    spelledRef.current = spelledRef.current.slice(0, -1);
+    setSpelledLetters(spelledRef.current);
 
-    // Unmark the last used matching letter
-    setLetterPool((prev) => {
-      let found = false;
-      return prev.map((l) => {
-        if (!found && l.used && l.letter === removedLetter) {
-          found = true;
-          return { ...l, used: false };
-        }
-        return l;
-      });
-    });
+    // Unmark one used tile with that letter
+    const tile = letterPool.find((l) => usedTileIdsRef.current.has(l.id) && l.letter === removedLetter);
+    if (tile) {
+      usedTileIdsRef.current.delete(tile.id);
+      setLetterPool((prev) => prev.map((l) => (l.id === tile.id ? { ...l, used: false } : l)));
+    }
   };
 
   const handleNextWord = () => {
+    if (gameState !== 'wordComplete' || !advanceLock.acquire()) return;
     const next = wordIndex + 1;
     setWordIndex(next);
     loadWord(next);
@@ -250,21 +286,32 @@ export function SpellingQuest() {
 
           {/* Letter Slots */}
           <div className="flex flex-wrap justify-center gap-2 sm:gap-3 my-2">
-            {currentWord.word
-              .toUpperCase()
-              .split('')
-              .map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-10 h-12 sm:w-12 sm:h-14 rounded-2xl border-3 flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner ${
-                    spelledLetters[i]
-                      ? 'bg-purple-100 border-purple-500 text-purple-900'
-                      : 'bg-white border-dashed border-slate-300 text-transparent'
-                  }`}
-                >
-                  {spelledLetters[i] || '_'}
-                </div>
-              ))}
+            {(() => {
+              let letterIndex = 0;
+              return Array.from(currentWord.word.toUpperCase()).map((ch, i) => {
+                if (!isLetter(ch)) {
+                  // Space / hyphen / apostrophe: shown as-is, no tile needed
+                  return (
+                    <div key={i} className="w-3 sm:w-4 h-12 sm:h-14 flex items-center justify-center font-black text-xl text-slate-500" aria-hidden="true">
+                      {ch.trim()}
+                    </div>
+                  );
+                }
+                const filled = spelledLetters[letterIndex++];
+                return (
+                  <div
+                    key={i}
+                    className={`w-10 h-12 sm:w-12 sm:h-14 rounded-2xl border-3 flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner ${
+                      filled
+                        ? 'bg-purple-100 border-purple-500 text-purple-900'
+                        : 'bg-white border-dashed border-slate-300 text-transparent'
+                    }`}
+                  >
+                    {filled || '_'}
+                  </div>
+                );
+              });
+            })()}
           </div>
 
           {/* Hint Message */}

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useVocabStore } from '../store/useVocabStore';
 import { useProgressStore } from '../store/useProgressStore';
 import { getWeightedRandomWords, getDistractors, shuffleArray } from '../utils/gameUtils';
-import confetti from 'canvas-confetti';
+import { confetti } from '../utils/confetti';
 import { Link } from 'react-router-dom';
 import { playCorrectSound, playIncorrectSound, playWinSound } from '../utils/audio';
 import { haptic } from '../utils/haptics';
@@ -10,6 +10,7 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { getGradeConfig } from '../utils/gradeConfig';
 import { getWordLinguisticProfile } from '../utils/linguisticEngine';
 import { Lightbulb, Timer } from 'lucide-react';
+import { useGameTimeouts, useLatest, isPageHidden, useActionLock } from '../hooks/useGameTimers';
 
 export function DefinitionDash() {
   const { words, recordPractice } = useVocabStore();
@@ -26,7 +27,11 @@ export function DefinitionDash() {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(config.timerSeconds);
   const [hintsRemaining, setHintsRemaining] = useState(config.hintsAllowed);
+  const [lastPoints, setLastPoints] = useState(0);
   const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const timeouts = useGameTimeouts();
+  const answerLock = useActionLock();
+  const advanceLock = useActionLock();
 
   const TOTAL_QUESTIONS = 5;
 
@@ -34,28 +39,28 @@ export function DefinitionDash() {
     if (words.length >= 2 && currentWord === null) {
       loadNextQuestion(0);
     }
-    return () => {
-      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    };
   }, [words.length, currentWord]);
 
+  // Countdown: pure state update only. The timeout itself is handled by the effect below so
+  // side effects never run inside a state updater (StrictMode runs updaters twice).
+  // The clock pauses while the app is in the background.
   useEffect(() => {
     if (gameState !== 'playing' || !config.hasTimer) return;
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleTimeout();
-          return 0;
-        }
-        return prev - 1;
-      });
+      if (isPageHidden()) return;
+      setTimeLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [gameState, currentWord]);
+  }, [gameState, currentWord, config.hasTimer]);
+
+  useEffect(() => {
+    if (config.hasTimer && gameState === 'playing' && currentWord && timeLeft <= 0) {
+      handleTimeout();
+    }
+  }, [timeLeft, gameState]);
 
   const advanceToNextQuestion = () => {
-    if (gameState !== 'feedback') return;
+    if (gameState !== 'feedback' || !advanceLock.acquire()) return;
     if (advanceTimerRef.current) {
       clearTimeout(advanceTimerRef.current);
       advanceTimerRef.current = null;
@@ -89,6 +94,8 @@ export function DefinitionDash() {
       return;
     }
 
+    answerLock.release();
+    advanceLock.release();
     const nextWord = getWeightedRandomWords(words, 1)[0];
     const numOptions = Math.min(words.length - 1, config.answerChoices - 1);
     const distractors = getDistractors(words, nextWord, numOptions);
@@ -103,19 +110,28 @@ export function DefinitionDash() {
     setHintsRemaining(config.hintsAllowed);
   };
 
+  // Timers always invoke the latest handler (a captured one would see stale `gameState`
+  // and do nothing, leaving "Advancing to next question..." stuck on screen).
+  const advanceRef = useLatest(advanceToNextQuestion);
+  const scheduleAdvance = (ms: number) => {
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    advanceTimerRef.current = timeouts.set(() => {
+      advanceTimerRef.current = null;
+      advanceRef.current();
+    }, ms);
+  };
+
   const handleTimeout = () => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' || !currentWord || !answerLock.acquire()) return;
     setIsCorrect(false);
     setGameState('feedback');
     playIncorrectSound(soundEnabled);
     haptic.error();
     recordPractice(currentWord.id, false);
     recordAnswer(false);
-    
-    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    advanceTimerRef.current = setTimeout(() => {
-      advanceToNextQuestion();
-    }, 2000);
+
+    // Like a wrong answer, a timeout shows the "Learning Moment" card and waits for the
+    // player to tap Continue (auto-skipping it gave kids no time to read the definition).
   };
 
   const useHint = () => {
@@ -131,7 +147,7 @@ export function DefinitionDash() {
   };
 
   const handleAnswer = (option: any) => {
-    if (gameState !== 'playing' || option.disabled) return;
+    if (gameState !== 'playing' || option.disabled || !currentWord || !answerLock.acquire()) return;
     
     const correct = option.id === currentWord.id;
     setIsCorrect(correct);
@@ -144,13 +160,12 @@ export function DefinitionDash() {
     if (correct) {
       playCorrectSound(soundEnabled);
       haptic.success();
-      setScore(s => s + 100 + (config.hasTimer ? timeLeft : 0));
+      const points = 100 + (config.hasTimer ? timeLeft : 0);
+      setLastPoints(points);
+      setScore((s) => s + points);
       addCoins(10);
       addStars(1);
-      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-      advanceTimerRef.current = setTimeout(() => {
-        advanceToNextQuestion();
-      }, 1500);
+      scheduleAdvance(1500);
     } else {
       playIncorrectSound(soundEnabled);
       haptic.error();
@@ -196,6 +211,7 @@ export function DefinitionDash() {
           <div className="flex flex-col gap-3">
             <button
               onClick={() => {
+                timeouts.clearAll();
                 setQuestionCount(0);
                 setScore(0);
                 loadNextQuestion(0);
@@ -253,7 +269,13 @@ export function DefinitionDash() {
       <div className="bg-white w-full p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-md border-4 sm:border-8 border-orange-300 text-center mb-4 sm:mb-6 relative">
         {hintsRemaining > 0 && gameState === 'playing' && (
           <button
-            onClick={useHint}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              useHint();
+            }}
+            aria-label={`Use a hint (${hintsRemaining} left): remove one wrong answer`}
+            title="Hint: remove one wrong answer"
             className="absolute top-2 right-2 sm:-top-4 sm:-right-4 bg-yellow-400 text-yellow-900 border-b-2 sm:border-b-4 border-yellow-600 p-2 sm:p-3 rounded-full hover:bg-yellow-300 active:translate-y-1 active:border-b-0 transition-all shadow-lg group"
           >
             <Lightbulb size={20} className="group-hover:animate-pulse sm:w-6 sm:h-6" />
@@ -318,7 +340,7 @@ export function DefinitionDash() {
           {isCorrect ? (
             <div className="flex flex-col items-center gap-2">
               <span className="bg-emerald-500 text-white font-black px-6 py-2 rounded-full text-base sm:text-xl shadow-md animate-bounce">
-                ✨ Correct! +100 PTS
+                ✨ Correct! +{lastPoints} PTS
               </span>
               <span className="text-xs font-bold text-slate-400">Advancing to next question...</span>
             </div>

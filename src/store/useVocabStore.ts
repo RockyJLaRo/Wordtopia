@@ -1,7 +1,82 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
 import { VocabWord, MasteryLevel, SkillDimension } from '../types';
+import { createSafeJSONStorage, finiteNumber, isPlainObject, stringArray } from '../utils/safeStorage';
+
+const uuidv4 = (): string => {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  } catch {
+    // randomUUID requires a secure context; fall through
+  }
+  return `w_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const REMOTE_VOCAB_URL = 'https://rockyjlaro.github.io/Vocab.txt';
+const MASTERY_LEVELS: MasteryLevel[] = ['New', 'Introduced', 'Learning', 'Practicing', 'Strong', 'Mastered', 'Needs Review'];
+
+// Cheap content fingerprint so an unchanged remote list is not re-merged on every launch.
+const hashText = (text: string): string => {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return `${text.length}:${h >>> 0}`;
+};
+
+/**
+ * Validates words restored from localStorage. Entries without a usable word/definition are
+ * dropped (they would render blank answer buttons), numeric stats are repaired, and duplicate
+ * IDs are re-issued so React keys and answer checks stay unique.
+ */
+export const sanitizeWords = (raw: unknown): VocabWord[] => {
+  if (!Array.isArray(raw)) return [];
+  const seenIds = new Set<string>();
+  const out: VocabWord[] = [];
+  for (const item of raw) {
+    if (!isPlainObject(item)) continue;
+    const word = typeof item.word === 'string' ? item.word.trim() : '';
+    const definition = typeof item.definition === 'string' ? item.definition.trim() : '';
+    if (!word || !definition) continue;
+    let id = typeof item.id === 'string' && item.id ? item.id : uuidv4();
+    if (seenIds.has(id)) id = uuidv4();
+    seenIds.add(id);
+    const practicedCount = finiteNumber(item.practicedCount, 0, 0);
+    const correctCount = finiteNumber(item.correctCount, 0, 0);
+    out.push({
+      ...(item as unknown as VocabWord),
+      id,
+      word,
+      definition,
+      lesson: typeof item.lesson === 'string' && item.lesson.trim() ? item.lesson : undefined,
+      practicedCount,
+      correctCount,
+      incorrectCount: finiteNumber(item.incorrectCount, 0, 0),
+      accuracy: practicedCount > 0 ? Math.min(1, correctCount / practicedCount) : 0,
+      masteryLevel: MASTERY_LEVELS.includes(item.masteryLevel as MasteryLevel) ? (item.masteryLevel as MasteryLevel) : 'New',
+      needsPractice: item.needsPractice === true,
+      confusionWords: stringArray(item.confusionWords).slice(-5),
+    });
+  }
+  return out;
+};
+
+// Shared in-flight request so rapid/duplicate triggers (StrictMode, online event, retries)
+// don't start parallel downloads that race each other.
+let inflightLoad: Promise<void> | null = null;
+
+async function fetchText(url: string, timeoutMs: number, cache: RequestCache): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { cache, signal: controller.signal });
+    if (!response.ok) throw new Error(`Vocab request failed with status ${response.status}`);
+    const text = await response.text();
+    // Captive portals / SPA fallbacks can answer 200 with an HTML page.
+    if (/^\s*</.test(text)) throw new Error('Vocab response was HTML, not a word list');
+    return text;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 export interface VocabState {
   allWords: VocabWord[];
@@ -11,6 +86,7 @@ export interface VocabState {
   isLoading: boolean;
   error: string | null;
   lastSyncTime: number | null;
+  lastSyncedHash?: string | null;
 
   // Actions
   setSelectedLesson: (lessonId: string) => void;
@@ -151,6 +227,7 @@ export const useVocabStore = create<VocabState>()(
       isLoading: false,
       error: null,
       lastSyncTime: null,
+      lastSyncedHash: null,
 
       setSelectedLesson: (lessonId: string) => {
         const state = get();
@@ -161,133 +238,122 @@ export const useVocabStore = create<VocabState>()(
         });
       },
 
-      loadVocabFromUrl: async (_force = false) => {
-        const initialState = get();
-        const hasExistingWords = initialState.allWords && initialState.allWords.length > 0;
-        
-        // Only show full loading spinner if we don't already have persistent words cached
-        if (!hasExistingWords) {
-          set({ isLoading: true, error: null });
-        }
+      loadVocabFromUrl: (force = false) => {
+        if (inflightLoad) return inflightLoad;
+        inflightLoad = (async () => {
+          const hasExistingWords = get().allWords.length > 0;
 
-        let text = '';
-        try {
-          // 1. Try remote fetch with a 2.5-second timeout (fallback quickly to local precache if offline/slow)
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-          const response = await fetch('https://rockyjlaro.github.io/Vocab.txt', {
-            cache: _force ? 'reload' : 'default',
-            signal: controller.signal,
-          });
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            text = await response.text();
-          } else {
-            throw new Error(`Remote responded with status ${response.status}`);
+          // Only show full loading spinner if we don't already have persistent words cached
+          if (!hasExistingWords) {
+            set({ isLoading: true, error: null });
           }
-        } catch (remoteErr) {
-          // Fast local fallback: local precached /Vocab.txt
+
+          let text = '';
           try {
-            const localResponse = await fetch('/Vocab.txt');
-            if (localResponse.ok) {
-              text = await localResponse.text();
+            // 1. Remote list (short timeout so slow networks fall back quickly)
+            text = await fetchText(REMOTE_VOCAB_URL, 4000, force ? 'reload' : 'default');
+          } catch {
+            // 2. Bundled/precached copy. Only needed when we have nothing saved yet: for a
+            // returning player a failed background refresh should change nothing.
+            if (!hasExistingWords || force) {
+              try {
+                text = await fetchText('/Vocab.txt', 4000, 'default');
+              } catch (localErr) {
+                console.warn('[useVocabStore] Local /Vocab.txt fetch failed:', localErr);
+              }
             }
-          } catch (localErr) {
-            console.warn('[useVocabStore] Local /Vocab.txt fetch failed:', localErr);
           }
-        }
 
-        // If we got text from online, service worker cache, or local fallback
-        if (text) {
-          try {
-            const parsed = parseVocabTextWithLessons(text);
-            if (parsed.length > 0) {
-              const state = get();
-              const existingList = state.allWords && state.allWords.length > 0 ? state.allWords : state.words;
-              const existingMap = new Map<string, VocabWord>();
-              for (const w of existingList) {
-                existingMap.set(w.word.toLowerCase(), w);
-              }
-
-              // Merge parsed words, preserving progress if already practiced
-              const mergedAllWords: VocabWord[] = parsed.map(p => {
-                const existing = existingMap.get(p.word.toLowerCase());
-                if (existing) {
-                  return {
-                    ...existing,
-                    definition: p.definition,
-                    lesson: p.lesson, // update with correct lesson
-                  };
-                }
-                return {
-                  id: uuidv4(),
-                  word: p.word,
-                  definition: p.definition,
-                  lesson: p.lesson,
-                  practicedCount: 0,
-                  correctCount: 0,
-                  incorrectCount: 0,
-                  accuracy: 0,
-                  masteryLevel: 'New' as MasteryLevel,
-                  needsPractice: false,
-                };
-              });
-
-              // Keep any custom user-added words not in the text file
-              for (const w of existingList) {
-                if (!parsed.some(p => p.word.toLowerCase() === w.word.toLowerCase())) {
-                  mergedAllWords.push(w);
-                }
-              }
-
-              const availableLessons = getLessonsFromWords(mergedAllWords);
-              let currentSelected = state.selectedLesson;
-              if (
-                !currentSelected ||
-                (currentSelected !== 'all' && !availableLessons.includes(currentSelected))
-              ) {
-                currentSelected = availableLessons[0] || 'Week #1';
-              }
-
-              const words = getFilteredWords(mergedAllWords, currentSelected);
-
-              set({
-                allWords: mergedAllWords,
-                words,
-                availableLessons,
-                selectedLesson: currentSelected,
-                isLoading: false,
-                lastSyncTime: Date.now(),
-                error: null,
-              });
+          if (text) {
+            const textHash = hashText(text);
+            if (hasExistingWords && textHash === get().lastSyncedHash) {
+              // Same list as last time: keep the player's local edits untouched.
+              set({ isLoading: false, error: null, lastSyncTime: Date.now() });
               return;
             }
-          } catch (parseErr) {
-            console.error('[useVocabStore] Error parsing vocab text:', parseErr);
-          }
-        }
+            try {
+              const parsed = parseVocabTextWithLessons(text);
+              if (parsed.length > 0) {
+                const state = get();
+                const existingList = state.allWords.length > 0 ? state.allWords : state.words;
+                const existingMap = new Map<string, VocabWord>();
+                for (const w of existingList) {
+                  existingMap.set(w.word.toLowerCase(), w);
+                }
 
-        // 3. Fallback to existing persisted words in state if offline
-        const state = get();
-        if (state.allWords && state.allWords.length > 0) {
-          const availableLessons = getLessonsFromWords(state.allWords);
-          const currentSelected = state.selectedLesson || availableLessons[0] || 'Week #1';
-          const words = getFilteredWords(state.allWords, currentSelected);
-          set({
-            words,
-            availableLessons,
-            selectedLesson: currentSelected,
-            isLoading: false,
-            error: null,
-          });
-        } else {
-          set({
-            isLoading: false,
-            error: 'Unable to load vocabulary words while offline. Connect to the internet to initialize.',
-          });
-        }
+                // Merge parsed words, preserving progress if already practiced
+                const parsedKeys = new Set<string>();
+                const mergedAllWords: VocabWord[] = [];
+                for (const p of parsed) {
+                  const key = p.word.toLowerCase();
+                  if (parsedKeys.has(key)) continue; // duplicate line in the list
+                  parsedKeys.add(key);
+                  const existing = existingMap.get(key);
+                  mergedAllWords.push(
+                    existing
+                      ? { ...existing, definition: p.definition, lesson: p.lesson }
+                      : {
+                          id: uuidv4(),
+                          word: p.word,
+                          definition: p.definition,
+                          lesson: p.lesson,
+                          practicedCount: 0,
+                          correctCount: 0,
+                          incorrectCount: 0,
+                          accuracy: 0,
+                          masteryLevel: 'New' as MasteryLevel,
+                          needsPractice: false,
+                        }
+                  );
+                }
+
+                // Keep any custom user-added words not in the text file
+                for (const w of existingList) {
+                  if (!parsedKeys.has(w.word.toLowerCase())) {
+                    mergedAllWords.push(w);
+                  }
+                }
+
+                const availableLessons = getLessonsFromWords(mergedAllWords);
+                let currentSelected = state.selectedLesson;
+                if (
+                  !currentSelected ||
+                  (currentSelected !== 'all' && !availableLessons.includes(currentSelected))
+                ) {
+                  currentSelected = availableLessons[0] || 'Week #1';
+                }
+
+                set({
+                  allWords: mergedAllWords,
+                  words: getFilteredWords(mergedAllWords, currentSelected),
+                  availableLessons,
+                  selectedLesson: currentSelected,
+                  isLoading: false,
+                  lastSyncTime: Date.now(),
+                  lastSyncedHash: textHash,
+                  error: null,
+                });
+                return;
+              }
+            } catch (parseErr) {
+              console.error('[useVocabStore] Error parsing vocab text:', parseErr);
+            }
+          }
+
+          // 3. Fallback to existing persisted words in state if offline
+          const state = get();
+          if (state.allWords.length > 0) {
+            set({ isLoading: false, error: null });
+          } else {
+            set({
+              isLoading: false,
+              error: 'Unable to load vocabulary words while offline. Connect to the internet to initialize.',
+            });
+          }
+        })().finally(() => {
+          inflightLoad = null;
+        });
+        return inflightLoad;
       },
 
       addWord: (word, definition, lesson) =>
@@ -384,6 +450,14 @@ export const useVocabStore = create<VocabState>()(
               incorrectCount: 0,
               accuracy: 0,
               masteryLevel: 'New' as MasteryLevel,
+              // Clear derived stats too, otherwise old streaks/skill scores leak into the
+              // "fresh" mastery calculation after a reset.
+              streak: 0,
+              dimensionScores: undefined,
+              confusionWords: [],
+              nextReviewDate: undefined,
+              lastPracticed: undefined,
+              needsPractice: false,
             };
           });
           const words = getFilteredWords(updatedAll, state.selectedLesson);
@@ -415,9 +489,9 @@ export const useVocabStore = create<VocabState>()(
           if (replaceExisting) {
             updatedAll = newWords;
           } else {
-            const existingWordStrings = state.allWords.map((w) => w.word.toLowerCase());
+            const existingWordStrings = new Set(state.allWords.map((w) => w.word.toLowerCase()));
             const filteredNewWords = newWords.filter(
-              (nw) => !existingWordStrings.includes(nw.word.toLowerCase())
+              (nw) => !existingWordStrings.has(nw.word.toLowerCase())
             );
             updatedAll = [...state.allWords, ...filteredNewWords];
           }
@@ -511,26 +585,46 @@ export const useVocabStore = create<VocabState>()(
     }),
     {
       name: 'vocab-adventure-words',
-      version: 2,
+      version: 3,
+      storage: createSafeJSONStorage<VocabState>(),
+      // `words` and `availableLessons` are derived from `allWords`; persisting them doubled
+      // the save size and the cost of every write (one per answered question).
+      partialize: (state) =>
+        ({
+          allWords: state.allWords,
+          selectedLesson: state.selectedLesson,
+          lastSyncTime: state.lastSyncTime,
+          lastSyncedHash: state.lastSyncedHash,
+        }) as VocabState,
       migrate: (persistedState: any, _version: number) => {
-        if (!persistedState) return persistedState;
-        const words = persistedState.words || [];
+        if (!isPlainObject(persistedState)) return persistedState;
+        const legacyWords = Array.isArray(persistedState.words) ? persistedState.words : [];
         const allWords =
-          persistedState.allWords && persistedState.allWords.length > 0
+          Array.isArray(persistedState.allWords) && persistedState.allWords.length > 0
             ? persistedState.allWords
-            : words.map((w: any) => ({
+            : legacyWords.map((w: any) => ({
                 ...w,
-                lesson: w.lesson || 'Week #1',
+                lesson: w?.lesson || 'Week #1',
               }));
-        const availableLessons = getLessonsFromWords(allWords);
-        const selectedLesson =
-          persistedState.selectedLesson || (availableLessons[0] || 'Week #1');
+        return { ...persistedState, allWords };
+      },
+      merge: (persisted, current) => {
+        if (!isPlainObject(persisted)) return current;
+        const p = persisted as Partial<VocabState>;
+        const allWords = sanitizeWords(p.allWords);
+        const availableLessons = allWords.length > 0 ? getLessonsFromWords(allWords) : current.availableLessons;
+        let selectedLesson = typeof p.selectedLesson === 'string' && p.selectedLesson ? p.selectedLesson : current.selectedLesson;
+        if (selectedLesson !== 'all' && allWords.length > 0 && !availableLessons.includes(selectedLesson)) {
+          selectedLesson = availableLessons[0] || 'Week #1';
+        }
         return {
-          ...persistedState,
+          ...current,
           allWords,
+          words: getFilteredWords(allWords, selectedLesson),
           availableLessons,
           selectedLesson,
-          words: getFilteredWords(allWords, selectedLesson),
+          lastSyncTime: typeof p.lastSyncTime === 'number' ? p.lastSyncTime : null,
+          lastSyncedHash: typeof p.lastSyncedHash === 'string' ? p.lastSyncedHash : null,
         };
       },
     }

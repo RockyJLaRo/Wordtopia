@@ -1,5 +1,36 @@
 import { create } from 'zustand';
 import { useProgressStore } from './useProgressStore';
+import { safeLocalStorage, finiteNumber, isPlainObject, stringArray, stringRecord } from '../utils/safeStorage';
+
+const TOKEN_KEY = 'vocab_auth_token';
+const readToken = () => safeLocalStorage.getItem(TOKEN_KEY) as string | null;
+const writeToken = (token: string | null) =>
+  token ? safeLocalStorage.setItem(TOKEN_KEY, token) : safeLocalStorage.removeItem(TOKEN_KEY);
+
+/** Fields mirrored to the cloud account. */
+export function getSyncableProgress() {
+  const p = useProgressStore.getState();
+  return {
+    stars: p.stars,
+    coins: p.coins,
+    currentStreak: p.currentStreak,
+    bestStreak: p.bestStreak,
+    mascotName: p.mascotName,
+    mascotBaseId: p.mascotBaseId,
+    mascotHealth: p.mascotHealth,
+    mascotHappiness: p.mascotHappiness,
+    equipped: p.equipped,
+    inventory: p.inventory,
+  };
+}
+
+async function readJson(res: Response): Promise<any> {
+  try {
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
 
 export type UserRole = 'user' | 'parent' | 'teacher' | 'moderator' | 'admin' | 'super_admin';
 
@@ -30,11 +61,12 @@ interface AuthState {
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
   deleteAccount: () => Promise<{ success: boolean; message: string }>;
   syncProgressWithCloud: () => Promise<void>;
+  pushProgressToCloud: (keepalive?: boolean) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  token: localStorage.getItem('vocab_auth_token'),
+  token: readToken(),
   isLoading: false,
   error: null,
   isAuthModalOpen: false,
@@ -44,7 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isAuthModalOpen: open, authModalMode: mode, error: null }),
 
   checkAuth: async () => {
-    const token = get().token || localStorage.getItem('vocab_auth_token');
+    const token = get().token || readToken();
     if (!token) return;
 
     try {
@@ -60,8 +92,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           // Fetch synced cloud progress
           await get().syncProgressWithCloud();
         }
-      } else {
-        localStorage.removeItem('vocab_auth_token');
+      } else if (res.status === 401 || res.status === 403) {
+        // Only an explicit rejection signs the player out; a 5xx or proxy hiccup keeps the session.
+        writeToken(null);
         set({ user: null, token: null });
       }
     } catch {
@@ -77,13 +110,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password }),
       });
-      const data = await res.json();
-      if (!res.ok) {
+      const data = await readJson(res);
+      if (!res.ok || !data.token) {
         set({ isLoading: false, error: data.error || 'Login failed.' });
         return { success: false, error: data.error };
       }
 
-      localStorage.setItem('vocab_auth_token', data.token);
+      writeToken(data.token);
       set({ user: data.user, token: data.token, isLoading: false, isAuthModalOpen: false, error: null });
 
       // Sync progress
@@ -103,36 +136,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password, role }),
       });
-      const data = await res.json();
-      if (!res.ok) {
+      const data = await readJson(res);
+      if (!res.ok || !data.token) {
         set({ isLoading: false, error: data.error || 'Registration failed.' });
         return { success: false, error: data.error };
       }
 
-      localStorage.setItem('vocab_auth_token', data.token);
+      writeToken(data.token);
       set({ user: data.user, token: data.token, isLoading: false, isAuthModalOpen: false, error: null });
 
-      // Immediately sync current local progress to new account
-      const currentProg = useProgressStore.getState();
-      await fetch('/api/progress/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${data.token}`,
-        },
-        body: JSON.stringify({
-          stars: currentProg.stars,
-          coins: currentProg.coins,
-          currentStreak: currentProg.currentStreak,
-          bestStreak: currentProg.bestStreak,
-          mascotName: currentProg.mascotName,
-          mascotBaseId: currentProg.mascotBaseId,
-          mascotHealth: currentProg.mascotHealth,
-          mascotHappiness: currentProg.mascotHappiness,
-          equipped: currentProg.equipped,
-          inventory: currentProg.inventory,
-        }),
-      });
+      // Immediately sync current local progress to new account (best effort; the
+      // background sync retries later if this request fails)
+      await get().pushProgressToCloud();
 
       return { success: true };
     } catch (e: any) {
@@ -151,7 +166,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       } catch {}
     }
-    localStorage.removeItem('vocab_auth_token');
+    writeToken(null);
     set({ user: null, token: null });
   },
 
@@ -162,7 +177,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       return { success: res.ok, resetToken: data.resetToken, message: data.message || data.error };
     } catch (e: any) {
       return { success: false, message: e.message };
@@ -176,7 +191,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       return { success: res.ok, message: data.message || data.error };
     } catch (e: any) {
       return { success: false, message: e.message };
@@ -194,7 +209,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       return { success: res.ok, message: data.message || data.error };
     } catch (e: any) {
       return { success: false, message: e.message };
@@ -208,9 +223,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (res.ok) {
-        localStorage.removeItem('vocab_auth_token');
+        writeToken(null);
         set({ user: null, token: null });
         useProgressStore.getState().resetProgress();
       }
@@ -231,24 +246,85 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!res.ok) return;
       const data = await res.json();
 
-      if (data.progress) {
-        // Merge with local progress, picking highest achievements/stars
+      const p = isPlainObject(data?.progress) ? data.progress : null;
+      if (p) {
+        // Merge with local progress, picking highest achievements/stars. Every cloud value is
+        // validated: a missing number used to turn local coins/stars into NaN.
         const local = useProgressStore.getState();
-        const p = data.progress;
-
         useProgressStore.setState({
-          stars: Math.max(local.stars, p.stars),
-          coins: Math.max(local.coins, p.coins),
-          currentStreak: Math.max(local.currentStreak, p.currentStreak),
-          bestStreak: Math.max(local.bestStreak, p.bestStreak),
-          mascotName: p.mascotName || local.mascotName,
-          mascotBaseId: p.mascotBaseId || local.mascotBaseId,
-          mascotHealth: p.mascotHealth ?? local.mascotHealth,
-          mascotHappiness: p.mascotHappiness ?? local.mascotHappiness,
-          equipped: { ...local.equipped, ...p.equipped },
-          inventory: [...new Set([...local.inventory, ...(p.inventory || [])])],
+          stars: Math.max(local.stars, finiteNumber(p.stars, 0, 0)),
+          coins: Math.max(local.coins, finiteNumber(p.coins, 0, 0)),
+          currentStreak: Math.max(local.currentStreak, finiteNumber(p.currentStreak, 0, 0)),
+          bestStreak: Math.max(local.bestStreak, finiteNumber(p.bestStreak, 0, 0)),
+          mascotName: typeof p.mascotName === 'string' && p.mascotName ? p.mascotName.slice(0, 40) : local.mascotName,
+          mascotBaseId: typeof p.mascotBaseId === 'string' && p.mascotBaseId ? p.mascotBaseId : local.mascotBaseId,
+          mascotHealth: finiteNumber(p.mascotHealth, local.mascotHealth, 0, 100),
+          mascotHappiness: finiteNumber(p.mascotHappiness, local.mascotHappiness, 0, 100),
+          equipped: { ...local.equipped, ...stringRecord(p.equipped) },
+          inventory: [...new Set([...local.inventory, ...stringArray(p.inventory)])],
         });
       }
     } catch {}
   },
+
+  pushProgressToCloud: async (keepalive = false) => {
+    const token = get().token;
+    if (!token || !get().user) return;
+    try {
+      await fetch('/api/progress/sync', {
+        method: 'POST',
+        keepalive,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(getSyncableProgress()),
+      });
+    } catch {
+      // Offline: the next change or app resume will try again.
+    }
+  },
 }));
+
+/**
+ * Keeps a signed-in player's cloud copy current. Previously progress was uploaded only once,
+ * at registration, so signing in on another device restored stale coins/items.
+ * Uploads are debounced (one request per burst of answers) and flushed when the app is hidden.
+ */
+export function startCloudProgressSync() {
+  if (typeof window === 'undefined') return () => {};
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let dirty = false;
+  let lastSnapshot = '';
+
+  const flush = (keepalive = false) => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    if (!dirty) return;
+    dirty = false;
+    useAuthStore.getState().pushProgressToCloud(keepalive);
+  };
+
+  const unsubscribe = useProgressStore.subscribe(() => {
+    if (!useAuthStore.getState().user) return;
+    const snapshot = JSON.stringify(getSyncableProgress());
+    if (snapshot === lastSnapshot) return;
+    lastSnapshot = snapshot;
+    dirty = true;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => flush(), 5000);
+  });
+
+  const onHide = () => {
+    if (document.visibilityState === 'hidden') flush(true);
+  };
+  document.addEventListener('visibilitychange', onHide);
+  window.addEventListener('pagehide', onHide);
+
+  return () => {
+    unsubscribe();
+    document.removeEventListener('visibilitychange', onHide);
+    window.removeEventListener('pagehide', onHide);
+    if (timer) clearTimeout(timer);
+  };
+}

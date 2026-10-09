@@ -21,6 +21,104 @@
   animation: bounceSubtle 2.5s ease-in-out infinite;
 }
 
+/* ---------- Mobile & touch behavior ---------- */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  /* Stop pull-to-refresh / scroll chaining from reloading the page mid-game */
+  overscroll-behavior-y: none;
+  /* Keep content clear of notches/rounded corners in landscape */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Remove the double-tap-to-zoom delay on controls (pinch-zoom stays available) */
+button,
+a,
+input,
+select,
+textarea,
+label,
+[role='button'] {
+  touch-action: manipulation;
+}
+
+/* iOS zooms the page when focusing inputs smaller than 16px */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
+
+.safe-area-bottom {
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+}
+
+/* Visible focus for keyboard and switch-access users */
+:focus-visible {
+  outline: 3px solid #0ea5e9;
+  outline-offset: 2px;
+}
+
+/* ---------- Game animations ---------- */
+@keyframes speed-bar-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.35s ease-in-out;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+.animate-wiggle {
+  animation: wiggle 0.18s ease-in-out;
+}
+
+/* ---------- Reduced motion ----------
+   Applies for the OS preference and for the in-game "Reduce Motion" setting (html.reduce-motion).
+   Also helps older phones: dozens of infinite pulse/bounce animations keep the GPU busy. */
+@media (prefers-reduced-motion: reduce) {
+  *:not([data-essential-animation]),
+  *:not([data-essential-animation])::before,
+  *:not([data-essential-animation])::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html.reduce-motion *:not([data-essential-animation]),
+html.reduce-motion *:not([data-essential-animation])::before,
+html.reduce-motion *:not([data-essential-animation])::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 @page {
   size: letter portrait;
   margin: 0.4in;

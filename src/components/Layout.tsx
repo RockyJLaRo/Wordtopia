@@ -1,10 +1,10 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { StarterSelectionModal } from './StarterSelectionModal';
-import { AvatarExportModal } from './AvatarExportModal';
-import { useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useProgressStore } from '../store/useProgressStore';
-import { useSettingsStore } from '../store/useSettingsStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { ErrorBoundary } from './ErrorBoundary';
 import {
   Settings,
   Home,
@@ -20,24 +20,59 @@ import {
   BookOpen,
   Shirt,
   FileText,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Onboarding } from './Onboarding';
 import { TransactionHistoryModal } from './TransactionHistoryModal';
 import { LessonSelector } from './LessonSelector';
-import { FeedbackModal } from './FeedbackModal';
 import { GameGraphic } from './GameGraphic';
 import { SoundQuickControl } from './SoundControls';
 import { PWAInstallButton } from './PWAInstallButton';
 import { OfflineIndicator } from './OfflineIndicator';
 import { playClickSound, playCoinSound } from '../utils/audio';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+import { applyPendingUpdateIfSafe } from '../services/pwaUpdate';
+
+// Rarely opened dialogs are downloaded only when first opened.
+const AvatarExportModal = lazy(lazyWithRetry(() => import('./AvatarExportModal').then((m) => ({ default: m.AvatarExportModal }))));
+const FeedbackModal = lazy(lazyWithRetry(() => import('./FeedbackModal').then((m) => ({ default: m.FeedbackModal }))));
+
+// Shown inside the page area while a game/page chunk downloads, so the HUD and
+// bottom navigation stay on screen instead of the whole app flashing to a spinner.
+function PageLoadingFallback() {
+  return (
+    <div role="status" aria-live="polite" className="flex-1 flex flex-col items-center justify-center p-8 min-h-[360px]">
+      <div className="w-12 h-12 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-amber-600 animate-bounce">
+        <Sparkles size={24} />
+      </div>
+      <p className="mt-3 text-sm font-black text-slate-600 tracking-wide">Loading adventure...</p>
+    </div>
+  );
+}
 
 export function Layout() {
-  const { stars, coins, currentStreak, mascotHealth, mascotHappiness } = useProgressStore();
-  const { user, setAuthModal } = useAuthStore();
+  // Select only the HUD fields so unrelated progress updates (e.g. per-answer stats)
+  // don't re-render the layout and, through <Outlet />, the active game.
+  const { stars, coins, currentStreak, mascotHealth, mascotHappiness, isAvatarExportOpen } = useProgressStore(
+    useShallow((s) => ({
+      stars: s.stars,
+      coins: s.coins,
+      currentStreak: s.currentStreak,
+      mascotHealth: s.mascotHealth,
+      mascotHappiness: s.mascotHappiness,
+      isAvatarExportOpen: s.isAvatarExportOpen,
+    }))
+  );
+  const user = useAuthStore((s) => s.user);
+  const setAuthModal = useAuthStore((s) => s.setAuthModal);
   const location = useLocation();
 
   const isHome = location.pathname === '/';
+
+  useEffect(() => {
+    applyPendingUpdateIfSafe(location.pathname);
+  }, [location.pathname]);
   const [isTransactionsOpen, setIsTransactionsOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
@@ -78,8 +113,12 @@ export function Layout() {
   return (
     <>
       <StarterSelectionModal />
-      <AvatarExportModal />
-      <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
+      {(isAvatarExportOpen || isFeedbackOpen) && (
+        <Suspense fallback={null}>
+          {isAvatarExportOpen && <AvatarExportModal />}
+          {isFeedbackOpen && <FeedbackModal isOpen onClose={() => setIsFeedbackOpen(false)} />}
+        </Suspense>
+      )}
       <div className="min-h-screen bg-sky-100 flex flex-col font-sans text-slate-800">
         <Onboarding />
         <TransactionHistoryModal
@@ -88,7 +127,7 @@ export function Layout() {
         />
 
         {/* Responsive Top HUD: Spaced evenly, centered, and cleanly centered when wrapped */}
-        <header className="bg-white/95 backdrop-blur-md border-b-4 border-sky-200 sticky top-0 z-50 shadow-sm transition-all">
+        <header className="bg-white/95 border-b-4 border-sky-200 sticky top-0 z-50 shadow-sm transition-all">
           <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5 md:gap-3">
             
             {/* 1. Home Link */}
@@ -256,14 +295,20 @@ export function Layout() {
         </header>
 
         {/* Main Content Area - Responsive padding and fluid max-width */}
-        <main className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-2.5 py-3 sm:px-4 sm:py-5 md:px-6 md:py-6 pb-20 md:pb-8 overflow-x-hidden min-h-0">
-          <Outlet />
+        <main className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-2.5 py-3 sm:px-4 sm:py-5 md:px-6 md:py-6 pb-24 md:pb-8 overflow-x-hidden min-h-0">
+          {/* Per-page boundary: a crash in one game/page keeps the HUD and navigation usable,
+              and navigating elsewhere clears the error automatically. */}
+          <ErrorBoundary resetKey={location.pathname} variant="inline">
+            <Suspense fallback={<PageLoadingFallback />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
 
         {/* Mobile Bottom Navigation Bar - Only visible on small/medium screens (< md) */}
         <nav
           aria-label="Mobile Navigation"
-          className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t-2 border-sky-200 px-2 py-1 shadow-lg flex items-center justify-around"
+          className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 border-t-2 border-sky-200 px-2 pt-1 safe-area-bottom shadow-lg flex items-center justify-around"
         >
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -272,8 +317,9 @@ export function Layout() {
                 key={item.to}
                 to={item.to}
                 onClick={() => playClickSound()}
+                aria-current={item.active ? 'page' : undefined}
                 className={cn(
-                  'flex flex-col items-center justify-center py-1 px-2 rounded-xl text-[10px] font-bold transition-all min-w-[52px] min-h-[46px]',
+                  'flex flex-col items-center justify-center py-1 px-2 rounded-xl text-[11px] font-bold transition-all min-w-[52px] min-h-[48px]',
                   item.active
                     ? 'text-sky-600 bg-sky-50 font-black'
                     : 'text-slate-500 hover:text-slate-800'
